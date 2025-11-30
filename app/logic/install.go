@@ -238,19 +238,20 @@ func getJsRuntimeInstalled() (bool, string) {
 	// check for npm or bun and prefer the latter
 
 	if runtime.GOOS == "windows" {
-		// Windows
-		if path, err := exec.LookPath("bun.exe"); err == nil {
-			return true, path
+		// Windows, return "bun" or "npm" with nothing else
+		if _, err := exec.LookPath("bun.exe"); err == nil {
+			return true, "bun"
 		}
-		if path, err := exec.LookPath("npm.cmd"); err == nil {
-			return true, path
+		if _, err := exec.LookPath("npm.cmd"); err == nil {
+			return true, "npm"
 		}
 	} else {
-		if path, err := exec.LookPath("bun"); err == nil {
-			return true, path
+		// macOS/Linux
+		if _, err := exec.LookPath("bun"); err == nil {
+			return true, "bun"
 		}
-		if path, err := exec.LookPath("npm"); err == nil {
-			return true, path
+		if _, err := exec.LookPath("npm"); err == nil {
+			return true, "npm"
 		}
 	}
 
