@@ -24,7 +24,6 @@ func main() {
 	a := app.New()
 	w := a.NewWindow("snail installer")
 	w.Resize(fyne.NewSize(500, 350))
-	w.SetFixedSize(true)
 
 	installPage := ui.NewInstallPage(w)
 	restorePage := ui.NewRestorePage(w)
