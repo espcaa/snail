@@ -266,17 +266,13 @@ func unpackAsar(asarPath, destDir string, jsRuntime string) error {
 		jsRuntimeX = "npx"
 	}
 
-	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-		fullCommand := fmt.Sprintf("%s asar extract '%s' '%s'", jsRuntimeX, asarPath, destDir)
-		cmd := exec.Command("sh", "-c", fullCommand)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("failed to unpack asar: %s, %w", string(output), err)
-		}
-		return nil
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		asarPath = fmt.Sprintf(`"%s"`, asarPath)
+		destDir = fmt.Sprintf(`"%s"`, destDir)
 	}
+	cmd = exec.Command(jsRuntimeX, "asar", "extract", asarPath, destDir)
 
-	cmd := exec.Command(jsRuntimeX, "asar", "extract", asarPath, destDir)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to unpack asar: %s, %w", string(output), err)
@@ -292,17 +288,10 @@ func packAsar(srcDir, asarPath string, jsRuntime string) error {
 	} else {
 		jsRuntimeX = "npx"
 	}
-
-	if runtime.GOOS == "darwin" || runtime.GOOS == "linux" {
-		fullCommand := fmt.Sprintf("%s asar pack '%s' '%s'", jsRuntimeX, srcDir, asarPath)
-		cmd := exec.Command("sh", "-c", fullCommand)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("failed to pack asar: %s, %w", string(output), err)
-		}
-		return nil
+	if runtime.GOOS == "windows" {
+		asarPath = fmt.Sprintf(`"%s"`, asarPath)
+		srcDir = fmt.Sprintf(`"%s"`, srcDir)
 	}
-
 	cmd := exec.Command(jsRuntimeX, "asar", "pack", srcDir, asarPath)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
