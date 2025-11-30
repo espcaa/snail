@@ -52,13 +52,13 @@ func InstallSomething(opts InstallOptions) error {
 
 	// unpack the asar file
 
-	jsRuntimeInstalled, jsRuntimePath := getJsRuntimeInstalled()
+	jsRuntimeInstalled, jsRuntimeName := getJsRuntimeInstalled()
 	if !jsRuntimeInstalled {
 		return errors.New("no JavaScript runtime (npm or bun) found in PATH")
 	}
-	println("Using JavaScript runtime at:", jsRuntimePath)
+	println("Using JavaScript runtime at:", jsRuntimeName)
 
-	err = unpackAsar(appAsarPath, filepath.Join(tempDir, "app-unpacked"), filepath.Base(jsRuntimePath))
+	err = unpackAsar(appAsarPath, filepath.Join(tempDir, "app-unpacked"), jsRuntimeName)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func InstallSomething(opts InstallOptions) error {
 	// repack the asar file
 
 	newAsarPath := filepath.Join(tempDir, "app-new.asar")
-	err = packAsar(filepath.Join(tempDir, "app-unpacked"), newAsarPath, filepath.Base(jsRuntimePath))
+	err = packAsar(filepath.Join(tempDir, "app-unpacked"), newAsarPath, jsRuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to repack asar: %w", err)
 	}
@@ -136,7 +136,7 @@ func InstallSomething(opts InstallOptions) error {
 	}
 
 	// remove electron fuses
-	err = removeElectronFuses(opts.TargetPath, filepath.Base(jsRuntimePath))
+	err = removeElectronFuses(opts.TargetPath, jsRuntimeName)
 	if err != nil {
 		return fmt.Errorf("failed to remove electron fuses: %w", err)
 	}
