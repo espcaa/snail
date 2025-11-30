@@ -49,7 +49,6 @@ func InstallSomething(opts InstallOptions) error {
 	// now copy it to temp_dir + "~/.snail/backups/app-backup-<timestamp>.asar"
 
 	backupAppAsar(appAsarPath)
-	copyFile(appAsarPath, filepath.Join(tempDir, "app.asar"))
 
 	// unpack the asar file
 
@@ -147,12 +146,17 @@ func InstallSomething(opts InstallOptions) error {
 
 func verifySlackInstall(path string) bool {
 	var appAsarPath string
-	if runtime.GOOS == "darwin" {
-		// macOS: Slack.app/Contents/Resources/app.asar
+	switch runtime.GOOS {
+	case "darwin":
 		appAsarPath = filepath.Join(path, "Contents", "Resources", "app.asar")
-	} else {
-		// Windows/Linux: Slack/resources/app.asar
+	case "windows":
+		// remove the last /<executable>.exe + add /resources/app.asar
+		parentDir := filepath.Dir(path)
+		appAsarPath = filepath.Join(parentDir, "resources", "app.asar")
+	case "linux":
 		appAsarPath = filepath.Join(path, "resources", "app.asar")
+	default:
+		return false
 	}
 
 	if _, err := os.Stat(appAsarPath); err == nil {
