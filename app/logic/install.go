@@ -267,6 +267,7 @@ func unpackAsar(asarPath, destDir string, jsRuntime string) error {
 	}
 
 	cmd := exec.Command(jsRuntimeX, "asar", "extract", asarPath, destDir)
+	println("Running command:", cmd.String())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to unpack asar: %s, %w", string(output), err)
