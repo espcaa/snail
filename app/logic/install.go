@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -358,11 +359,24 @@ func downloadFile(url, destPath string) error {
 }
 
 func codeSignMacOS(appPath string) error {
-	// codesign --force --sign - --deep --preserve-metadata=identifier,entitlements Slack.app
-	cmd := exec.Command("codesign", "--force", "--sign", "-", "--deep", "--preserve-metadata=identifier,entitlements", appPath)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to code sign app: %s, %w", string(output), err)
+	appleScript := fmt.Sprintf(`
+	do shell script "/usr/bin/codesign --force --sign - --deep --preserve-metadata=identifier,entitlements %s" with administrator privileges`, appPath)
+
+	for {
+		cmd := exec.Command("osascript", "-e", appleScript)
+		output, err := cmd.CombinedOutput()
+
+		if err != nil {
+			if strings.Contains(string(output), "User canceled") || strings.Contains(string(output), "authentication failure") {
+				fmt.Println("You must provide the correct password to continue. Please try again.")
+			} else {
+				// try again...
+			}
+		} else {
+			break
+		}
+
+		time.Sleep(1 * time.Second)
 	}
 
 	return nil
