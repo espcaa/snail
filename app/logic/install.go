@@ -91,20 +91,45 @@ func InstallSomething(opts InstallOptions) error {
 
 	// add required code to index.js to load inject.js
 
-	indexJsPath := filepath.Join(tempDir, "app-unpacked", "index.js")
-	indexJsData, err := os.ReadFile(indexJsPath)
-	if err != nil {
-		return fmt.Errorf("failed to read index.js: %w", err)
-	}
+	// if we find a index.js file in the unpacked app directory root (e.g., app-unpacked/index.js) then do that else, ...
+	if _, err := os.Stat(filepath.Join(tempDir, "app-unpacked", "index.js")); err == nil {
+		indexJsPath := filepath.Join(tempDir, "app-unpacked", "index.js")
+		indexJsData, err := os.ReadFile(indexJsPath)
+		if err != nil {
+			return fmt.Errorf("failed to read index.js: %w", err)
+		}
 
-	injectCode := "\nrequire('./inject.js');\n"
-	newIndexJsData := append([]byte(injectCode), indexJsData...)
+		injectCode := "\nrequire('./inject.js');\n"
+		newIndexJsData := append([]byte(injectCode), indexJsData...)
 
-	err = os.WriteFile(indexJsPath, newIndexJsData, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write modified index.js: %w", err)
+		err = os.WriteFile(indexJsPath, newIndexJsData, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write modified index.js: %w", err)
+		}
+		println("Modified index.js to load inject.js")
+	} else {
+		// we need to inject in main.bundle.cjs, inside app-unpacked/dist/main.bundle.cjs
+		mainBundlePath := filepath.Join(tempDir, "app-unpacked", "dist", "main.bundle.cjs")
+		mainBundleData, err := os.ReadFile(mainBundlePath)
+		if err != nil {
+			return fmt.Errorf("failed to read main.bundle.cjs: %w", err)
+		}
+
+		// injecting the whole content of the inject.js at the start of main.bundle.cjs
+		injectJsData, err := os.ReadFile(destInjectJsPath)
+		if err != nil {
+			return fmt.Errorf("failed to read inject.js for injection: %w", err)
+		}
+
+		injectCode := "\n" + string(injectJsData) + "\n"
+		newMainBundleData := append([]byte(injectCode), mainBundleData...)
+
+		err = os.WriteFile(mainBundlePath, newMainBundleData, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write modified main.bundle.cjs: %w", err)
+		}
+		println("Modified main.bundle.cjs to load inject.js")
 	}
-	println("Modified index.js to load inject.js")
 
 	// repack the asar file
 
