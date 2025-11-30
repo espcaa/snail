@@ -39,9 +39,15 @@ func InstallSomething(opts InstallOptions) error {
 	if runtime.GOOS == "darwin" {
 		// macOS: Slack.app/Contents/Resources/app.asar
 		appAsarPath = filepath.Join(opts.TargetPath, "Contents", "Resources", "app.asar")
-	} else {
-		// Windows/Linux: Slack/resources/app.asar
+	} else if runtime.GOOS == "windows" {
+		// Windows: <path>\<executable>.exe -> <path>\resources\app.asar
+		parentDir := filepath.Dir(opts.TargetPath)
+		appAsarPath = filepath.Join(parentDir, "resources", "app.asar")
+	} else if runtime.GOOS == "linux" {
+		// Linux: <path>/resources/app.asar
 		appAsarPath = filepath.Join(opts.TargetPath, "resources", "app.asar")
+	} else {
+		return errors.New("unsupported operating system")
 	}
 
 	println("Using app.asar path:", appAsarPath)
