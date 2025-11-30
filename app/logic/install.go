@@ -378,6 +378,7 @@ func removeElectronFuses(asarPath string, jsRuntime string) error {
 	}
 
 	cmd := exec.Command(jsRuntimeX, "@electron/fuses", "write", "--app", asarPath, "EnableEmbeddedAsarIntegrityValidation=off")
+	println("Removing electron fuses with command:", cmd.String())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to remove electron fuses: %s, %w", string(output), err)
