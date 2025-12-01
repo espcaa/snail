@@ -3,13 +3,7 @@ const path = require("path");
 const os = require("os");
 
 const homeDir = os.homedir();
-const pluginThingyPath = path.join(
-  homeDir,
-  ".config",
-  "snail",
-  "internal",
-  "main.js",
-);
+const pluginThingyPath = path.join(homeDir, ".snail", "internal", "main.js");
 
 if (fs.existsSync(pluginThingyPath)) {
   try {

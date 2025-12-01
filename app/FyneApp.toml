@@ -1,0 +1,12 @@
+[Details]
+Icon = "Icon.png"
+Name = "snail installer"
+ID = "eu.espcaa.snailinstaller"
+Version = "1.0.0"
+Build = 3
+
+[LinuxAndBSD]
+GenericName = "Snail Installer"
+Categories = ["Network", "WebBrowser"]
+Comment = "mod your slack client!"
+Keywords = ["slack", "communication", "mod"]
