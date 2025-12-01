@@ -1,0 +1,52 @@
+name: macos app build
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🛠️ Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install Fyne
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+
+      # --- Build macOS ARM64 ---
+      - name: ⚙️ Build macOS (ARM64)
+        run: |
+          env GOOS=darwin GOARCH=arm64 go build -o build/arm64/app
+          env GOOS=darwin GOARCH=arm64 fyne package -os darwin \
+            --exe build/arm64/app \
+            --icon Icon.png \
+            --id eu.espcaa.snailinstaller
+
+      - name: ⬆️ Upload macOS ARM64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-app
+          path: ./*.app
+
+      # --- Build macOS Intel (AMD64) ---
+      - name: ⚙️ Build macOS (AMD64)
+        run: |
+          env GOOS=darwin GOARCH=amd64 go build -o build/amd64/app
+          env GOOS=darwin GOARCH=amd64 fyne package -os darwin \
+            --exe build/amd64/app \
+            --icon Icon.png \
+            --id eu.espcaa.snailinstaller
+
+      - name: ⬆️ Upload macOS AMD64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-amd64-app
+          path: ./*.app
