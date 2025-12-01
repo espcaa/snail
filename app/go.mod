@@ -1,4 +1,4 @@
-module snail-app
+module snail-installer
 
 go 1.25.4
 

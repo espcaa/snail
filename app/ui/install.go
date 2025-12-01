@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"snail-app/logic"
+	"snail-installer/logic"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"

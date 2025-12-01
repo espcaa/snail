@@ -1,8 +1,8 @@
 package main
 
 import (
-	"snail-app/logic"
-	"snail-app/ui"
+	"snail-installer/logic"
+	"snail-installer/ui"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
