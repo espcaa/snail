@@ -41,9 +41,9 @@ jobs:
       - name: ⚙️ Build macOS (AMD64)
         working-directory: ./app
         run: |
-          env GOOS=darwin GOARCH=amd64 go build -o ../build/arm64/snail-installer
+          env GOOS=darwin GOARCH=amd64 go build -o ../build/amd64/snail-installer
           env GOOS=darwin GOARCH=amd64 fyne package -os darwin \
-            --exe ../build/arm64/snail-installer \
+            --exe ../build/amd64/snail-installer \
             --icon ../app/Icon.png \
             --id eu.espcaa.snailinstaller
 
@@ -51,4 +51,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-amd64-app
-          path: ./*.app
+          path: app/*.app
