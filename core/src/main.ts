@@ -37,7 +37,7 @@ const readConfig = (): Config => {
       return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
     }
   } catch (err) {
-    console.error("[SNAIL] Failed to read config:", err);
+    console.error("[snail] Failed to read config:", err);
   }
   return { serverUrl: "", pluginsEnabled: [], themesEnabled: [] };
 };
@@ -62,7 +62,7 @@ const readPluginManifest = (pluginId: string): PluginManifest | null => {
   try {
     return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   } catch (err) {
-    console.error(`[SNAIL] Failed to read manifest for ${pluginId}:`, err);
+    console.error(`[snail] Failed to read manifest for ${pluginId}:`, err);
     return null;
   }
 };
@@ -99,7 +99,7 @@ const readPluginFiles = (pluginId: string): { code?: string; css?: string } => {
 };
 
 // ---------- IPC Handlers ----------
-ipcMain.on("SNAIL_GET_PLUGINS", (e) => {
+ipcMain.on("SNAIL_GET_PLUGIN_LIST", (e) => {
   try {
     const pluginDirs = getPluginDirs();
     const cfg = readConfig();
@@ -114,7 +114,7 @@ ipcMain.on("SNAIL_GET_PLUGINS", (e) => {
 
     e.returnValue = plugins;
   } catch (err) {
-    console.error("[SNAIL] Error getting plugins:", err);
+    console.error("[snail] Error getting plugins:", err);
     e.returnValue = [];
   }
 });
@@ -124,7 +124,7 @@ ipcMain.on("SNAIL_ENABLE_PLUGIN", (e, pluginId: string) => {
   if (!cfg.pluginsEnabled.includes(pluginId)) {
     cfg.pluginsEnabled.push(pluginId);
     writeConfig(cfg);
-    console.log(`[SNAIL] Enabled plugin: ${pluginId}`);
+    console.log(`[snail] Enabled plugin: ${pluginId}`);
   }
   e.returnValue = true;
 });
@@ -133,7 +133,7 @@ ipcMain.on("SNAIL_DISABLE_PLUGIN", (e, pluginId: string) => {
   const cfg = readConfig();
   cfg.pluginsEnabled = cfg.pluginsEnabled.filter((id) => id !== pluginId);
   writeConfig(cfg);
-  console.log(`[SNAIL] Disabled plugin: ${pluginId}`);
+  console.log(`[snail] Disabled plugin: ${pluginId}`);
   e.returnValue = true;
 });
 

@@ -58,11 +58,11 @@ const loadPlugin = async (plugin: Plugin): Promise<boolean> => {
       pluginInstances[plugin.id] = instance;
 
       if (typeof instance.start === "function") instance.start();
-      console.log(`[SlackMod] Started plugin: ${plugin.id}`);
+      console.log(`[snail] Started plugin: ${plugin.id}`);
 
       return true;
     } catch (e) {
-      console.error(`[SlackMod] Failed to start plugin ${plugin.id}:`, e);
+      console.error(`[snail] Failed to start plugin ${plugin.id}:`, e);
       return false;
     }
   }
@@ -75,9 +75,9 @@ const unloadPlugin = (pluginId: string) => {
   if (instance && typeof instance.stop === "function") {
     try {
       instance.stop();
-      console.log(`[SlackMod] Stopped plugin: ${pluginId}`);
+      console.log(`[snail] Stopped plugin: ${pluginId}`);
     } catch (e) {
-      console.error(`[SlackMod] Error stopping plugin ${pluginId}:`, e);
+      console.error(`[snail] Error stopping plugin ${pluginId}:`, e);
     }
   }
 
@@ -92,7 +92,7 @@ const unloadPlugin = (pluginId: string) => {
 };
 
 // ---------- Expose API to Renderer ----------
-contextBridge.exposeInMainWorld("slackmod_custom", {
+contextBridge.exposeInMainWorld("snail", {
   getPluginList,
   getPluginFile,
   enablePlugin: async (pluginId: string) => {
@@ -109,15 +109,21 @@ contextBridge.exposeInMainWorld("slackmod_custom", {
 // ---------- Load enabled plugins on DOM ready ----------
 window.addEventListener("DOMContentLoaded", async () => {
   const plugins = getPluginList();
-  console.log(`[SlackMod] Found ${plugins.length} plugins.`);
-
+  console.log(`[snail] Found ${plugins.length} plugins.`);
+  console.log(
+    `[snail] ${plugins.filter((p) => p.enabled).length} enabled plugins.`,
+  );
+  // print the full data
+  for (const plugin of plugins) {
+    console.log(`[snail] Plugin: ${plugin.id}, Enabled: ${plugin.enabled}`);
+  }
   for (const plugin of plugins) {
     if (plugin.enabled) {
       const success = await loadPlugin(plugin);
       console.log(
         success
-          ? `[SlackMod] Loaded plugin: ${plugin.id}`
-          : `[SlackMod] Failed to load plugin: ${plugin.id}`,
+          ? `[snail] Loaded plugin: ${plugin.id}`
+          : `[snail] Failed to load plugin: ${plugin.id}`,
       );
     }
   }

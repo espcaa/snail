@@ -7,6 +7,8 @@ async function run() {
     outdir: "./dist",
     minify: true,
     target: "node",
+    format: "cjs",
+    external: ["electron"],
   });
 }
 
