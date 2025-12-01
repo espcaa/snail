@@ -19,15 +19,15 @@ jobs:
           go-version: "1.22"
 
       - name: Install Fyne
-        run: go install fyne.io/fyne/v2/cmd/fyne@latest
+        run: go install fyne.io/tools/cmd/fyne@latest
 
       # --- Build macOS ARM64 ---
       - name: ⚙️ Build macOS (ARM64)
         working-directory: ./app
         run: |
-          env GOOS=darwin GOARCH=arm64 go build -o ../build/arm64/snail-app
+          env GOOS=darwin GOARCH=arm64 go build -o ../build/arm64/snail-installer
           env GOOS=darwin GOARCH=arm64 fyne package -os darwin \
-            --exe ../build/arm64/snail-app \
+            --exe ../build/arm64/snail-installer \
             --icon ../app/Icon.png \
             --id eu.espcaa.snailinstaller
 
@@ -35,15 +35,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-app
-          path: ./*.app
+          path: app/*.app
 
       # --- Build macOS Intel (AMD64) ---
       - name: ⚙️ Build macOS (AMD64)
         working-directory: ./app
         run: |
-          env GOOS=darwin GOARCH=amd64 go build -o ../build/amd64/snail-app
+          env GOOS=darwin GOARCH=amd64 go build -o ../build/arm64/snail-installer
           env GOOS=darwin GOARCH=amd64 fyne package -os darwin \
-            --exe ../build/amd64/snail-app \
+            --exe ../build/arm64/snail-installer \
             --icon ../app/Icon.png \
             --id eu.espcaa.snailinstaller
 
