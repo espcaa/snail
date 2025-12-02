@@ -373,7 +373,7 @@ func codeSignMacOS(appPath string) error {
 
 		if err != nil {
 			if strings.Contains(string(output), "User canceled") || strings.Contains(string(output), "authentication failure") {
-				fmt.Println("You must provide the correct password to continue. Please try again.")
+				fmt.Printf("You must provide the correct password to continue. Please try again. (Attempt %d/%d)\n", attempt, maxRetries)
 			}
 			if attempt == maxRetries {
 				return fmt.Errorf("code signing failed after %d attempts: %w", maxRetries, err)

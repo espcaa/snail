@@ -12,9 +12,8 @@ import (
 
 // debouncer provides a way to debounce function calls
 type debouncer struct {
-	mu      sync.Mutex
-	timer   *time.Timer
-	pending bool
+	mu    sync.Mutex
+	timer *time.Timer
 }
 
 func (d *debouncer) debounce(duration time.Duration, fn func()) {

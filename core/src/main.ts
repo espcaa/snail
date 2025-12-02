@@ -53,7 +53,7 @@ const readConfig = (): Config => {
       }
       cachedConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
       configLastModified = mtime;
-      return cachedConfig!;
+      return cachedConfig;
     }
   } catch (err) {
     console.error("[snail] Failed to read config:", err);
