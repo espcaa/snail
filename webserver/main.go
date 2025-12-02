@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -18,6 +20,18 @@ type SnailWebserver struct {
 
 type Info struct {
 	Version string `json:"version"`
+}
+
+// Cache for GitHub API responses
+type tagCache struct {
+	mu        sync.RWMutex
+	tag       string
+	fetchedAt time.Time
+	ttl       time.Duration
+}
+
+var githubTagCache = &tagCache{
+	ttl: 5 * time.Minute,
 }
 
 func main() {
@@ -73,6 +87,16 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func getLatestGitHubTag(owner, repo string) (string, error) {
+	// Check cache first
+	githubTagCache.mu.RLock()
+	if githubTagCache.tag != "" && time.Since(githubTagCache.fetchedAt) < githubTagCache.ttl {
+		tag := githubTagCache.tag
+		githubTagCache.mu.RUnlock()
+		return tag, nil
+	}
+	githubTagCache.mu.RUnlock()
+
+	// Cache miss or expired, fetch from GitHub
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -91,6 +115,12 @@ func getLatestGitHubTag(owner, repo string) (string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return "", err
 	}
+
+	// Update cache
+	githubTagCache.mu.Lock()
+	githubTagCache.tag = data.TagName
+	githubTagCache.fetchedAt = time.Now()
+	githubTagCache.mu.Unlock()
 
 	return data.TagName, nil
 }

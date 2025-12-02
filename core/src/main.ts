@@ -31,10 +31,29 @@ interface Config {
   themesEnabled: string[];
 }
 
+// In-memory cache for config and manifests
+let cachedConfig: Config | null = null;
+let configLastModified: number = 0;
+const manifestCache = new Map<string, { manifest: PluginManifest | null; mtime: number }>();
+
+const getFileMtime = (filePath: string): number => {
+  try {
+    return fs.statSync(filePath).mtimeMs;
+  } catch {
+    return 0;
+  }
+};
+
 const readConfig = (): Config => {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
-      return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+      const mtime = getFileMtime(CONFIG_FILE);
+      if (cachedConfig && mtime === configLastModified) {
+        return cachedConfig;
+      }
+      cachedConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+      configLastModified = mtime;
+      return cachedConfig!;
     }
   } catch (err) {
     console.error("[snail] Failed to read config:", err);
@@ -45,6 +64,8 @@ const readConfig = (): Config => {
 const writeConfig = (cfg: Config) => {
   fs.mkdirSync(BASE_DIR, { recursive: true });
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2));
+  cachedConfig = cfg;
+  configLastModified = getFileMtime(CONFIG_FILE);
 };
 
 // ---------- Plugin Helpers ----------
@@ -59,8 +80,17 @@ const getPluginDirs = (): string[] => {
 const readPluginManifest = (pluginId: string): PluginManifest | null => {
   const manifestPath = path.join(PLUGINS_DIR, pluginId, "manifest.json");
   if (!fs.existsSync(manifestPath)) return null;
+  
   try {
-    return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const mtime = getFileMtime(manifestPath);
+    const cached = manifestCache.get(pluginId);
+    if (cached && cached.mtime === mtime) {
+      return cached.manifest;
+    }
+    
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    manifestCache.set(pluginId, { manifest, mtime });
+    return manifest;
   } catch (err) {
     console.error(`[snail] Failed to read manifest for ${pluginId}:`, err);
     return null;

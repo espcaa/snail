@@ -255,7 +255,9 @@ func copyFile(src, dst string) error {
 		}
 	}()
 
-	if _, err = io.Copy(out, in); err != nil {
+	// Use buffered I/O for better performance with large files
+	buf := make([]byte, 32*1024) // 32KB buffer
+	if _, err = io.CopyBuffer(out, in, buf); err != nil {
 		return err
 	}
 
@@ -362,21 +364,25 @@ func codeSignMacOS(appPath string) error {
 	appleScript := fmt.Sprintf(`
 	do shell script "/usr/bin/codesign --force --sign - --deep --preserve-metadata=identifier,entitlements %s" with administrator privileges`, appPath)
 
-	for {
+	const maxRetries = 5
+	retryDelay := 1 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
 		cmd := exec.Command("osascript", "-e", appleScript)
 		output, err := cmd.CombinedOutput()
 
 		if err != nil {
 			if strings.Contains(string(output), "User canceled") || strings.Contains(string(output), "authentication failure") {
 				fmt.Println("You must provide the correct password to continue. Please try again.")
-			} else {
-				// try again...
 			}
+			if attempt == maxRetries {
+				return fmt.Errorf("code signing failed after %d attempts: %w", maxRetries, err)
+			}
+			time.Sleep(retryDelay)
+			retryDelay *= 2 // Exponential backoff
 		} else {
-			break
+			return nil
 		}
-
-		time.Sleep(1 * time.Second)
 	}
 
 	return nil
