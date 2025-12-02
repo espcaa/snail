@@ -6,7 +6,9 @@ import { app, ipcMain } from "electron";
 interface PluginManifest {
   entry?: string;
   css?: string | string[];
-  [key: string]: any;
+  name?: string;
+  description?: string;
+  version?: string;
 }
 
 export interface Plugin {
@@ -14,7 +16,23 @@ export interface Plugin {
   manifest: PluginManifest;
 }
 
+export interface Theme {
+  id: string;
+  manifest: ThemeManifest;
+}
+
+export interface ThemeManifest {
+  css?: string | string[];
+  name?: string;
+  description?: string;
+  version?: string;
+}
+
 interface PluginWithState extends Plugin {
+  enabled: boolean;
+}
+
+interface ThemeWithState extends Theme {
   enabled: boolean;
 }
 
@@ -56,6 +74,14 @@ const getPluginDirs = (): string[] => {
     .map((d) => d.name);
 };
 
+const getThemeDirs = (): string[] => {
+  if (!fs.existsSync(THEMES_DIR)) return [];
+  return fs
+    .readdirSync(THEMES_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
+};
+
 const readPluginManifest = (pluginId: string): PluginManifest | null => {
   const manifestPath = path.join(PLUGINS_DIR, pluginId, "manifest.json");
   if (!fs.existsSync(manifestPath)) return null;
@@ -63,6 +89,17 @@ const readPluginManifest = (pluginId: string): PluginManifest | null => {
     return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   } catch (err) {
     console.error(`[snail] Failed to read manifest for ${pluginId}:`, err);
+    return null;
+  }
+};
+
+const readThemeManifest = (themeId: string): ThemeManifest | null => {
+  const manifestPath = path.join(THEMES_DIR, themeId, "manifest.json");
+  if (!fs.existsSync(manifestPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  } catch (err) {
+    console.error(`[snail] Failed to read manifest for theme ${themeId}:`, err);
     return null;
   }
 };
@@ -108,7 +145,14 @@ ipcMain.on("SNAIL_GET_PLUGIN_LIST", (e) => {
       .map((id) => {
         const manifest = readPluginManifest(id);
         if (!manifest) return null;
-        return { id, manifest, enabled: cfg.pluginsEnabled.includes(id) };
+        return {
+          id,
+          manifest,
+          enabled: cfg.pluginsEnabled.includes(id),
+          name: manifest.name || id,
+          description: manifest.description || "",
+          version: manifest.version || "1.0.0",
+        };
       })
       .filter(Boolean) as PluginWithState[];
 
@@ -135,6 +179,79 @@ ipcMain.on("SNAIL_DISABLE_PLUGIN", (e, pluginId: string) => {
   writeConfig(cfg);
   console.log(`[snail] Disabled plugin: ${pluginId}`);
   e.returnValue = true;
+});
+
+ipcMain.on("SNAIL_ENABLE_THEME", (e, themeId: string) => {
+  console.log(`[snail] Enabling theme: ${themeId}`);
+  const cfg = readConfig();
+  if (!cfg.themesEnabled.includes(themeId)) {
+    cfg.themesEnabled.push(themeId);
+    writeConfig(cfg);
+    console.log(`[snail] Enabled theme: ${themeId}`);
+  }
+  e.returnValue = true;
+  console.log(`[snail] Theme enabled: ${themeId}`);
+});
+
+ipcMain.on("SNAIL_DISABLE_THEME", (e, themeId: string) => {
+  const cfg = readConfig();
+  cfg.themesEnabled = cfg.themesEnabled.filter((id) => id !== themeId);
+  writeConfig(cfg);
+  console.log(`[snail] Disabled theme: ${themeId}`);
+  e.returnValue = true;
+});
+
+ipcMain.on("SNAIL_GET_THEME_LIST", (e) => {
+  try {
+    const themeDirs = getThemeDirs();
+    const cfg = readConfig();
+
+    const themes: ThemeWithState[] = themeDirs
+      .map((id) => {
+        const manifest = readThemeManifest(id);
+        if (!manifest) return null;
+        return {
+          id,
+          manifest,
+          enabled: cfg.themesEnabled.includes(id),
+          name: manifest.name || id,
+          description: manifest.description || "",
+          version: manifest.version || "1.0.0",
+        };
+      })
+      .filter(Boolean) as ThemeWithState[];
+
+    e.returnValue = themes;
+  } catch (err) {
+    console.error("[snail] Error getting plugins:", err);
+    e.returnValue = [];
+  }
+});
+
+ipcMain.on("SNAIL_GET_THEME_FILE", (e, themeId: string) => {
+  const themePath = path.join(THEMES_DIR, themeId);
+  const result: { css?: string } = {};
+  const manifest = readThemeManifest(themeId);
+  if (!manifest) {
+    e.returnValue = result;
+    return;
+  }
+
+  // CSS files
+  if (manifest.css) {
+    const cssFiles = Array.isArray(manifest.css)
+      ? manifest.css
+      : [manifest.css];
+    result.css = cssFiles
+      .map((f) => {
+        const cssPath = path.join(themePath, f);
+        if (fs.existsSync(cssPath)) return fs.readFileSync(cssPath, "utf8");
+        return "";
+      })
+      .join("\n");
+  }
+
+  e.returnValue = result;
 });
 
 ipcMain.on("SNAIL_GET_PLUGIN_FILE", (e, pluginId: string) => {
