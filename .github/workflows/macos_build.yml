@@ -17,7 +17,6 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "1.25.4"
-          working-directory: ./app
 
       - name: Install dependencies
         run: |
@@ -49,6 +48,10 @@ jobs:
         run: |
           GOARCH=amd64 fyne package -os darwin
         working-directory: ./app
+
+      - name: Remove previous DMG file
+        run: |
+          rm ./app/snail-installer.dmg
 
       - name: Create DMG file
         run: |
