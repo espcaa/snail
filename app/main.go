@@ -26,12 +26,12 @@ func main() {
 	w.Resize(fyne.NewSize(500, 350))
 
 	installPage := ui.NewInstallPage(w)
-	restorePage := ui.NewRestorePage(w)
+	// restorePage := ui.NewRestorePage(w)
 	settingsPage := ui.NewSettingsPage(w)
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Install", installPage),
-		container.NewTabItem("Restore", restorePage),
+		// container.NewTabItem("Restore", restorePage),
 		container.NewTabItem("Settings", settingsPage),
 	)
 

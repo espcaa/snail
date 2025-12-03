@@ -7,48 +7,46 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
-      - name: ⬇️ Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-      - name: 🛠️ Set up Go
-        uses: actions/setup-go@v5
+      - name: Set up go
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.22"
+          go-version: "1.25.4"
 
-      - name: Install Fyne
-        run: go install fyne.io/tools/cmd/fyne@latest
-
-      # --- Build macOS ARM64 ---
-      - name: ⚙️ Build macOS (ARM64)
-        working-directory: ./app
+      - name: Install dependencies
         run: |
-          env GOOS=darwin GOARCH=arm64 go build -o ../build/arm64/snail-installer
-          env GOOS=darwin GOARCH=arm64 fyne package -os darwin \
-            --exe ../build/arm64/snail-installer \
-            --icon ../app/Icon.png \
-            --id eu.espcaa.snailinstaller
+          go mod download
+          go install
+        working-directory: ./app
 
-      - name: ⬆️ Upload macOS ARM64 Artifact
+      - name: Install the fyne cli
+        run: |
+          go install fyne.io/tools/cmd/fyne@latest
+        working-directory: ./app
+
+      - name: Build macOS app
+        run: |
+          fyne package -os darwin
+        working-directory: ./app
+
+      - name: Upload macOS arm64 app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64-app
-          path: app/*.app
+          name: snail-macos-arm64.app
+          path: ./app/snail-installer.app
 
-      # --- Build macOS Intel (AMD64) ---
-      - name: ⚙️ Build macOS (AMD64)
-        working-directory: ./app
+      - name: Build macOS x86_64 app
         run: |
-          env GOOS=darwin GOARCH=amd64 go build -o ../build/amd64/snail-installer
-          env GOOS=darwin GOARCH=amd64 fyne package -os darwin \
-            --exe ../build/amd64/snail-installer \
-            --icon ../app/Icon.png \
-            --id eu.espcaa.snailinstaller
+          fyne package -os darwin -arch x64
+        working-directory: ./app
 
-      - name: ⬆️ Upload macOS AMD64 Artifact
+      - name: Upload macOS x86_64 app artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-amd64-app
-          path: app/*.app
+          name: snail-macos-x86_64.app
+          path: ./app/snail-installer.app
