@@ -42,7 +42,7 @@ jobs:
 
       - name: Build macOS x86_64 app
         run: |
-          fyne package -os darwin -arch x64
+          GOARCH=amd64 fyne package -os darwin
         working-directory: ./app
 
       - name: Upload macOS x86_64 app artifact
