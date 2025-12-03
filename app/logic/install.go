@@ -37,17 +37,18 @@ func InstallSomething(opts InstallOptions) error {
 	// now copy the .asar file to the temp dir
 
 	var appAsarPath string
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		// macOS: Slack.app/Contents/Resources/app.asar
 		appAsarPath = filepath.Join(opts.TargetPath, "Contents", "Resources", "app.asar")
-	} else if runtime.GOOS == "windows" {
+	case "windows":
 		// Windows: <path>\<executable>.exe -> <path>\resources\app.asar
 		parentDir := filepath.Dir(opts.TargetPath)
 		appAsarPath = filepath.Join(parentDir, "resources", "app.asar")
-	} else if runtime.GOOS == "linux" {
+	case "linux":
 		// Linux: <path>/resources/app.asar
 		appAsarPath = filepath.Join(opts.TargetPath, "resources", "app.asar")
-	} else {
+	default:
 		return errors.New("unsupported operating system")
 	}
 
@@ -377,6 +378,20 @@ func codeSignMacOS(appPath string) error {
 		}
 
 		time.Sleep(1 * time.Second)
+	}
+
+	// tccutil reset ScreenCapture com.tinyspeck.slackmacgap
+	// tccutil reset Microphone com.tinyspeck.slackmacgap
+	// tccutil reset Camera com.tinyspeck.slackmacgap
+
+	permissions := []string{"ScreenCapture", "Microphone", "Camera"}
+	bunleID := "com.tinyspeck.slackmacgap"
+	for _, perm := range permissions {
+		cmd := exec.Command("tccutil", "reset", perm, bunleID)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			fmt.Printf("Warning: failed to reset %s permission: %s, %s\n", perm, string(output), err)
+		}
 	}
 
 	return nil
