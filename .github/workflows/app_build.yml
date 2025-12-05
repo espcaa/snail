@@ -33,18 +33,18 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           shopt -s dotglob
+          find . -maxdepth 1 -mindepth 1 !  -name '. git' ! -name 'app' -exec rm -rf {} +
           mv ./app/* .
           shopt -u dotglob
           rm -rf app
-          find . -maxdepth 1 -mindepth 1 !  -name '. git' ! -name 'app' -exec rm -rf {} +
 
-      - name: Move /app to root and remove everything else (powershell)
+      - name: Move /app to root and remove everything else (Windows fix)
         if: runner.os == 'Windows'
-        run: |
-          Get-ChildItem -Path . -Exclude .git, app | ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
-          Move-Item -Path .\app\* -Destination .\
-          Remove-Item -Recurse -Force .\app
         shell: pwsh
+        run: |
+          Get-ChildItem -Path . -Force | Where-Object { $_.Name -notin ".git","app" } | Remove-Item -Recurse -Force
+          Get-ChildItem -Path .\app -Force | Move-Item -Destination .\ -Force
+          Remove-Item -Recurse -Force .\app
 
       - name: Set up Go
         uses: actions/setup-go@v6
