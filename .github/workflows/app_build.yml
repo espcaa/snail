@@ -85,7 +85,7 @@ jobs:
       - name: Create macOS DMG file
         if: ${{ matrix.os == 'darwin' }}
         run: |
-          hdiutil create -format UDZO -srcfolder ./snail-installer. app ./snail-installer-${{ matrix.architecture }}.dmg
+          hdiutil create -format UDZO -srcfolder ./snail-installer.app ./snail-installer-${{ matrix.architecture }}.dmg
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
