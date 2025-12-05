@@ -51,6 +51,15 @@ jobs:
         with:
           go-version: "1.25.4"
 
+      - name: Install mysys for arm64 Windows builds
+        if: ${{ matrix.os == 'Windows' && matrix.architecture == 'arm64' }}
+        run: |
+          Invoke-WebRequest -Uri "https://repo.msys2.org/distrib/x86_64/msys2-x86_64-20221221.exe" -OutFile "msys2.exe"
+          Start-Process msiexec -Wait -ArgumentList "/i msys2.exe /quiet /norestart"
+          $env:MSYS2_PATH="C:\msys64\usr\bin"
+          $env:PATH="$env:MSYS2_PATH;$env:PATH"
+          & C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm mingw-w64-cross-aarch64-gcc"
+
       - name: Install dependencies
         run: |
           go mod download
@@ -65,11 +74,20 @@ jobs:
           GOARCH=${{ matrix.architecture }} fyne package -os ${{ matrix.os }}
 
       - name: Build app (${{ matrix. os }} - ${{ matrix.architecture }}) (powershell)
-        if: ${{ matrix.os == 'windows' }}
+        if: ${{ matrix.os == 'windows' && matrix.architecture != 'arm64' }}
         run: |
           $env:GOARCH='${{ matrix.architecture }}'
           fyne package -os ${{ matrix.os }}
         shell: pwsh
+
+      - name: Build app Windows ARM64 with cgo
+        if: ${{ matrix.os == 'Windows' && matrix.architecture == 'arm64' }}
+        shell: pwsh
+        run: |
+          $env:GOARCH='arm64'
+          $env:CC='C:\msys64\usr\bin\aarch64-w64-mingw32-gcc.exe'
+          $env:CXX='C:\msys64\usr\bin\aarch64-w64-mingw32-g++.exe'
+          fyne package -os windows
 
       - name: Create Windows ZIP file
         if: ${{ matrix.os == 'windows' }}

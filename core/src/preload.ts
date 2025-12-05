@@ -1,51 +1,18 @@
 import { contextBridge, ipcRenderer } from "electron";
 import {
   PluginFile,
-  SnailPluginInstance,
   SnailAPI,
   ThemeListItem,
   PluginListItem,
+  Plugin,
 } from "snail-plugin-api";
-const pluginInstances: {
+
+const plugins: {
   [pluginId: string]: {
-    scriptId: string;
-    instance: SnailPluginInstance | null;
+    scriptID: string;
+    instance: Plugin | null;
   };
 } = {};
-const runningPlugins: { [pluginId: string]: boolean } = {};
-
-let currentPluginRegistration: {
-  id: string;
-  instance: SnailPluginInstance | null;
-} = { id: "", instance: null };
-
-const pluginLoadResolvers: {
-  [pluginId: string]: ((value: unknown) => void) | null;
-} = {};
-
-const registerPlugin = (instance: Omit<SnailPluginInstance, "id">): void => {
-  if (!currentPluginRegistration.id) {
-    console.error(
-      "[snail] registerPlugin called outside of a loading context.",
-    );
-    return;
-  }
-
-  const finalInstance = instance as SnailPluginInstance;
-  finalInstance.id = currentPluginRegistration.id;
-
-  currentPluginRegistration.instance = finalInstance;
-
-  console.log(
-    `[snail] Plugin ${currentPluginRegistration.id} registered successfully.`,
-  );
-
-  const resolver = pluginLoadResolvers[currentPluginRegistration.id];
-  if (resolver) {
-    resolver(true);
-    delete pluginLoadResolvers[currentPluginRegistration.id];
-  }
-};
 
 const injectCSS = (code: string, id: string): void => {
   const style = document.createElement("style");
@@ -75,45 +42,31 @@ const injectModuleScript = (moduleSource: string, id: string): string => {
   return scriptId;
 };
 
-const wrapPluginCode = (pluginId: string, code: string): string => {
-  return `
-    (function() {
-      const Snail = window.Snail;
-      const pluginId = '${pluginId}';
+const wrapPluginCode = (pluginId: string, code: string): string => `
+(function() {
+  const Snail = window.Snail;
+  const pluginId = '${pluginId}';
 
-      try {
-        ${code}
-      } catch (err) {
-        console.error('[snail][plugin:' + pluginId + '] plugin execution error', err);
-      }
+  try {
+    ${code}
+  } catch (err) {
+    console.error('[snail][plugin:' + pluginId + '] plugin execution error', err);
+  }
 
-      var isRunningCache = false;
-      setInterval(() => {
-        const currentlyRunning = Snail.isPluginRunning(pluginId);
+  if (typeof Plugin !== 'undefined') {
+    Snail.registerPlugin(pluginId, Plugin);
+  }
+})();
+`;
 
-        const pluginData = Snail.pluginInstances[pluginId];
-        const inst = pluginData ? pluginData.instance : null;
+const startPlugin = (pluginId: string) => {
+  const inst = plugins[pluginId]?.instance;
+  inst?.start();
+};
 
-        if (currentlyRunning && !isRunningCache) {
-          try {
-              inst.start();
-              console.log('[snail][plugin:' + pluginId + '] start() invoked.');
-              isRunningCache = true;
-          } catch (e) {
-              console.error('[snail][plugin:' + pluginId + '] error during start():', e);
-          }
-        } else if (!currentlyRunning && isRunningCache) {
-          try {
-              inst.stop();
-              console.log('[snail][plugin:' + pluginId + '] stop() invoked.');
-              isRunningCache = false;
-          } catch (e) {
-              console.error('[snail][plugin:' + pluginId + '] error during stop():', e);
-          }
-        }
-      }, 100);
-    })();
-  `;
+const stopPlugin = (pluginId: string) => {
+  const inst = plugins[pluginId]?.instance;
+  inst?.stop();
 };
 
 const getPluginList = (): PluginListItem[] =>
@@ -122,7 +75,7 @@ const getPluginList = (): PluginListItem[] =>
 const getPluginFile = (pluginId: string): PluginFile | null =>
   ipcRenderer.sendSync("SNAIL_GET_PLUGIN_FILE", pluginId);
 
-const loadPlugin = async (pluginId: string): Promise<boolean> => {
+const loadPlugin = (pluginId: string): boolean => {
   const file = getPluginFile(pluginId);
   if (!file) {
     console.warn(`[snail] Plugin file not found for ${pluginId}`);
@@ -134,86 +87,17 @@ const loadPlugin = async (pluginId: string): Promise<boolean> => {
   }
 
   if (file.code) {
-    currentPluginRegistration = { id: pluginId, instance: null };
-
     const wrapped = wrapPluginCode(pluginId, file.code);
     const scriptId = injectModuleScript(wrapped, `plugin-${pluginId}`);
-
-    const pluginLoadPromise = new Promise((resolve) => {
-      pluginLoadResolvers[pluginId] = resolve;
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(
-        () =>
-          reject(
-            new Error(`Timeout: registerPlugin not called for ${pluginId}`),
-          ),
-        1000,
-      ),
-    );
-
-    let loadSuccessful = false;
-    try {
-      await Promise.race([pluginLoadPromise, timeoutPromise]);
-      loadSuccessful = !!currentPluginRegistration.instance;
-    } catch (e) {
-      console.warn(
-        `[snail] Plugin ${pluginId} failed to load within time/error:`,
-        e,
-      );
-      loadSuccessful = false;
-    }
-
-    if (loadSuccessful) {
-      runningPlugins[pluginId] = true;
-      pluginInstances[pluginId] = {
-        scriptId,
-        instance: currentPluginRegistration.instance,
-      };
-      console.log(`[snail] Plugin ${pluginId} successfully initialized.`);
-      return true;
-    } else {
-      console.error(`[snail] Plugin ${pluginId} failed to register.`);
-      document.getElementById(scriptId)?.remove();
-      document
-        .querySelector(`style[data-snail="plugin-${pluginId}-style"]`)
-        ?.remove();
-      return false;
-    }
+    plugins[pluginId] = {
+      scriptID: scriptId,
+      instance: null,
+    };
+    return true;
+  } else {
+    console.warn(`[snail] No code found in plugin file for ${pluginId}`);
+    return false;
   }
-
-  return false;
-};
-
-const isPluginRunning = (pluginId: string): boolean => {
-  return !!runningPlugins[pluginId];
-};
-
-const unloadPlugin = (pluginId: string): void => {
-  const inst = pluginInstances[pluginId]?.instance;
-
-  if (inst && typeof inst.stop === "function") {
-    try {
-      inst.stop();
-      console.log(`[snail] Plugin ${pluginId} stop() invoked during unload.`);
-    } catch (err) {
-      console.error(`[snail] Error stopping ${pluginId} during unload:`, err);
-    }
-  }
-
-  delete pluginInstances[pluginId];
-  delete runningPlugins[pluginId];
-
-  document
-    .querySelectorAll(`script[data-snail="plugin-${pluginId}"]`)
-    .forEach((el) => el.remove());
-
-  document
-    .querySelectorAll(`style[data-snail="plugin-${pluginId}-style"]`)
-    .forEach((el) => el.remove());
-
-  console.log(`[snail] Plugin ${pluginId} fully unloaded.`);
 };
 
 const getThemeList = (): ThemeListItem[] =>
@@ -257,30 +141,36 @@ const enablePlugin = async (pluginId: string): Promise<boolean> => {
     "SNAIL_ENABLE_PLUGIN",
     pluginId,
   );
-  if (success) return await loadPlugin(pluginId);
+  if (success) return (startPlugin(pluginId), true);
   return false;
 };
 
 const disablePlugin = (pluginId: string): boolean => {
-  unloadPlugin(pluginId);
+  stopPlugin(pluginId);
   return ipcRenderer.sendSync("SNAIL_DISABLE_PLUGIN", pluginId);
 };
 
+const registerPlugin = (pluginId: string, instance: Plugin) => {
+  plugins[pluginId] = {
+    scriptID: plugins[pluginId]?.scriptID || "",
+    instance,
+  };
+  console.log(`[snail] Plugin registered: ${pluginId}`);
+};
+
 const SnailGlobal: SnailAPI = {
-  registerPlugin,
   getPluginList,
   getThemeList,
   enableTheme,
   disableTheme,
   enablePlugin,
   disablePlugin,
-  // Exposing internal structure for wrapped code to access instances
+  registerPlugin,
 };
 
 contextBridge.exposeInMainWorld("Snail", {
   ...SnailGlobal,
-  isPluginRunning,
-  pluginInstances,
+  plugins,
 });
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -289,13 +179,17 @@ window.addEventListener("DOMContentLoaded", async () => {
     console.log(`[snail] Found ${plugins.length} plugins.`);
 
     for (const plugin of plugins) {
-      if (plugin.enabled) {
-        const success = await loadPlugin(plugin.id);
-        console.log(
-          success
-            ? `[snail] Loaded plugin: ${plugin.id}`
-            : `[snail] Failed to load plugin: ${plugin.id}`,
-        );
+      let res = loadPlugin(plugin.id);
+      console.log(
+        res
+          ? `[snail] Loaded plugin: ${plugin.id}`
+          : `[snail] Failed to load plugin: ${plugin.id}`,
+      );
+
+      // start all the plugins that are enabled
+      if (plugin.enabled && res) {
+        startPlugin(plugin.id);
+        console.log(`[snail] Started plugin: ${plugin.id}`);
       }
     }
 
