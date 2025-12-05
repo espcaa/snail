@@ -11,17 +11,17 @@ jobs:
       matrix:
         include:
           - os: windows
-            runner: ubuntu-latest
-            architecture: amd64
+            runner: windows-latest
+            architecture: x64
           - os: windows
-            runner: ubuntu-latest
+            runner: windows-latest
             architecture: arm64
           - os: darwin
             runner: macos-15
             architecture: arm64
           - os: darwin
             runner: macos-15
-            architecture: amd64
+            architecture: x64
 
     runs-on: ${{ matrix.runner }}
 
@@ -34,16 +34,6 @@ jobs:
         with:
           go-version: "1.25.4"
 
-      - name: Install dependencies for cross-compiling
-        if: ${{ matrix.os == 'windows' }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64
-
-      - name: Install Clang
-        if: ${{ matrix.os == 'windows' && matrix.architecture == 'arm64' }}
-        run: sudo apt-get install -y clang
-
       - name: Install dependencies
         run: |
           go mod download
@@ -55,26 +45,20 @@ jobs:
           go install fyne.io/tools/cmd/fyne@latest
         working-directory: ./app
 
-      - name: Set cross-compilation environment variables
+      - name: Set build environment
         run: |
           if [ "${{ matrix.os }}" == "windows" ]; then
-            export GOOS=windows
-            export GOARCH=${{ matrix.architecture }}
-            export CGO_ENABLED=1
-            if [ "${{ matrix.architecture }}" == "amd64" ]; then
-              export CC=x86_64-w64-mingw32-gcc
-            elif [ "${{ matrix.architecture }}" == "arm64" ]; then
-              export CC=clang
-              export CFLAGS="--target=aarch64-windows-gnu"
-              export LDFLAGS="--target=aarch64-windows-gnu"
-            fi
+            set GOOS=windows
+            set GOARCH=${{ matrix.architecture }}
+            set CGO_ENABLED=1
           elif [ "${{ matrix.os }}" == "darwin" ]; then
             export GOARCH=${{ matrix.architecture }}
           fi
+        shell: cmd
 
       - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }})
         run: |
-          fyne package -os ${{ matrix.os }}
+          fyne package -os ${{ matrix.os }} -appVersion 1.0.0 -name snail-installer
         working-directory: ./app
 
       - name: Create Windows ZIP file
