@@ -34,6 +34,10 @@ jobs:
           fyne package -os darwin
         working-directory: ./app
 
+      - name: Sign macOS app
+        run: |
+          codesign --deep --force --verify --verbose --sign "-" ./app/snail-installer.app
+
       - name: Create DMG file
         run: |
           hdiutil create -format UDZO -srcfolder ./app/snail-installer.app ./app/snail-installer.dmg
@@ -48,6 +52,10 @@ jobs:
         run: |
           GOARCH=amd64 fyne package -os darwin
         working-directory: ./app
+
+      - name: Sign macOS x86_64 app
+        run: |
+          codesign --deep --force --verify --verbose --sign "-" ./app/snail-installer.app
 
       - name: Remove previous DMG file
         run: |

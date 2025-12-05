@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "bun": "^1.3.3",
-    "electron": "^39.2.4",
-    "snail-plugin-api": "1.2.0"
+    "electron": "^39.2.5",
+    "electron-devtools-installer": "^4.0.0",
+    "snail-plugin-api": "1.3.4"
   }
 }

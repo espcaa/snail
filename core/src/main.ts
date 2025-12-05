@@ -1,40 +1,14 @@
 import * as os from "os";
 import * as path from "path";
 import * as fs from "fs";
-import { app, ipcMain } from "electron";
+import { app, ipcMain, session } from "electron";
 
-interface PluginManifest {
-  entry?: string;
-  css?: string | string[];
-  name?: string;
-  description?: string;
-  version?: string;
-}
-
-export interface Plugin {
-  id: string;
-  manifest: PluginManifest;
-}
-
-export interface Theme {
-  id: string;
-  manifest: ThemeManifest;
-}
-
-export interface ThemeManifest {
-  css?: string | string[];
-  name?: string;
-  description?: string;
-  version?: string;
-}
-
-interface PluginWithState extends Plugin {
-  enabled: boolean;
-}
-
-interface ThemeWithState extends Theme {
-  enabled: boolean;
-}
+import {
+  PluginListItem,
+  ThemeListItem,
+  PluginManifest,
+  ThemeManifest,
+} from "snail-plugin-api";
 
 const BASE_DIR = path.join(os.homedir(), ".snail");
 const PLUGINS_DIR = path.join(BASE_DIR, "plugins");
@@ -141,7 +115,7 @@ ipcMain.on("SNAIL_GET_PLUGIN_LIST", (e) => {
     const pluginDirs = getPluginDirs();
     const cfg = readConfig();
 
-    const plugins: PluginWithState[] = pluginDirs
+    const plugins: PluginListItem[] = pluginDirs
       .map((id) => {
         const manifest = readPluginManifest(id);
         if (!manifest) return null;
@@ -154,7 +128,7 @@ ipcMain.on("SNAIL_GET_PLUGIN_LIST", (e) => {
           version: manifest.version || "1.0.0",
         };
       })
-      .filter(Boolean) as PluginWithState[];
+      .filter(Boolean) as PluginListItem[];
 
     e.returnValue = plugins;
   } catch (err) {
@@ -206,7 +180,7 @@ ipcMain.on("SNAIL_GET_THEME_LIST", (e) => {
     const themeDirs = getThemeDirs();
     const cfg = readConfig();
 
-    const themes: ThemeWithState[] = themeDirs
+    const themes: ThemeListItem[] = themeDirs
       .map((id) => {
         const manifest = readThemeManifest(id);
         if (!manifest) return null;
@@ -219,7 +193,7 @@ ipcMain.on("SNAIL_GET_THEME_LIST", (e) => {
           version: manifest.version || "1.0.0",
         };
       })
-      .filter(Boolean) as ThemeWithState[];
+      .filter(Boolean) as ThemeListItem[];
 
     e.returnValue = themes;
   } catch (err) {
@@ -264,4 +238,13 @@ app.once("browser-window-created", (ev, win) => {
   if (!pre.includes(PRELOAD)) {
     win.webContents.session.setPreloads([...pre, PRELOAD]);
   }
+});
+
+const installExtension = require("electron-devtools-installer").default;
+const { REACT_DEVELOPER_TOOLS } = require("electron-devtools-installer");
+
+app.whenReady().then(async () => {
+  installExtension(REACT_DEVELOPER_TOOLS)
+    .then((name) => console.log(`Added extension: ${name}`))
+    .catch((err) => console.log("An error occurred: ", err));
 });
