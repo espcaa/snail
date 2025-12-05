@@ -94,12 +94,19 @@ function startPlugin(pluginId: string) {
 
   plugin.running = true;
 
-  injectJS(`
-  const event = new CustomEvent("snail:startPlugin", {
+  const uuid = crypto.randomUUID();
+  const uuidNoDash = uuid.replace(/-/g, "");
+
+  const code = `
+  const event${uuidNoDash} = new CustomEvent("snail:startPlugin", {
     detail: { id: "${pluginId}" },
   });
-  window.dispatchEvent(event);
-  `);
+  window.dispatchEvent(event${uuidNoDash});
+  `;
+
+  console.log(`[snail] Starting plugin: ${pluginId} with code: ${code}`);
+
+  injectJS(code);
 
   console.log(`[snail] Plugin started: ${pluginId}`);
 }
@@ -108,14 +115,20 @@ function stopPlugin(pluginId: string) {
   const plugin = plugins[pluginId];
   if (!plugin) return;
 
-  plugin.running = false;
+  const uuid = crypto.randomUUID();
+  const uuidNoDash = uuid.replace(/-/g, "");
 
-  injectJS(`
-  const event = new CustomEvent("snail:stopPlugin", {
+  plugin.running = false;
+  const code = `
+  const event${uuidNoDash} = new CustomEvent("snail:stopPlugin", {
     detail: { id: "${pluginId}" },
   });
-  window.dispatchEvent(event);
-  `);
+  window.dispatchEvent(event${uuidNoDash});
+  `;
+
+  console.log(`[snail] Stopping plugin: ${pluginId} with code: ${code}`);
+
+  injectJS(code);
 
   console.log(`[snail] Plugin stopped: ${pluginId}`);
 }
