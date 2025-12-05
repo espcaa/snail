@@ -34,9 +34,9 @@ jobs:
         run: |
           shopt -s dotglob
           mv ./app/* .
-          shopt -u dotglob # Turn dotglob off
+          shopt -u dotglob
           rm -rf app
-          find . -maxdepth 1 -mindepth 1 ! -name '.git' ! -name 'app' -exec rm -rf {} +
+          find . -maxdepth 1 -mindepth 1 !  -name '. git' ! -name 'app' -exec rm -rf {} +
 
       - name: Move /app to root and remove everything else (powershell)
         if: runner.os == 'Windows'
@@ -49,23 +49,22 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.25.4"
+          go-version: "1.25. 4"
 
       - name: Install dependencies
         run: |
           go mod download
-          go install
 
       - name: Install the Fyne CLI
         run: |
           go install fyne.io/tools/cmd/fyne@latest
 
       - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (bash)
-        if: ${{ matrix.os == 'darwin' }}
+        if: ${{ matrix. os == 'darwin' }}
         run: |
           GOARCH=${{ matrix.architecture }} fyne package -os ${{ matrix.os }}
 
-      - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (powershell)
+      - name: Build app (${{ matrix. os }} - ${{ matrix.architecture }}) (powershell)
         if: ${{ matrix.os == 'windows' }}
         run: |
           $env:GOARCH='${{ matrix.architecture }}'
@@ -75,7 +74,7 @@ jobs:
       - name: Create Windows ZIP file
         if: ${{ matrix.os == 'windows' }}
         run: |
-          Compress-Archive -Path ./snail-installer.exe -DestinationPath ./snail-installer-${{ matrix.architecture }}.zip
+          Compress-Archive -Path ./snail-installer.exe -DestinationPath ./snail-installer-${{ matrix. architecture }}.zip
         shell: pwsh
 
       - name: Sign macOS app
@@ -86,10 +85,10 @@ jobs:
       - name: Create macOS DMG file
         if: ${{ matrix.os == 'darwin' }}
         run: |
-          hdiutil create -format UDZO -srcfolder ./snail-installer.app ./snail-installer-${{ matrix.architecture }}.dmg
+          hdiutil create -format UDZO -srcfolder ./snail-installer. app ./snail-installer-${{ matrix.architecture }}.dmg
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os == 'windows' && format('snail-installer-{0}.zip', matrix.architecture) || format('snail-macos-{0}.dmg', matrix.architecture) }}
-          path: ${{ matrix.os == 'windows' && format('snail-installer-{0}.zip', matrix.architecture) || format('snail-installer-{0}.dmg', matrix.architecture) }}
+          name: ${{ matrix.os == 'windows' && format('snail-installer-{0}. zip', matrix.architecture) || format('snail-macos-{0}.dmg', matrix.architecture) }}
+          path: ${{ matrix.os == 'windows' && format('snail-installer-{0}.zip', matrix. architecture) || format('snail-installer-{0}.dmg', matrix.architecture) }}
