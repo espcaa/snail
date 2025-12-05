@@ -1,4 +1,4 @@
-name: macos app build
+name: macOS App Build
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     runs-on: macos-15
+
+    strategy:
+      matrix:
+        architecture: [arm64, amd64]
 
     steps:
       - name: Checkout repository
@@ -31,7 +35,7 @@ jobs:
 
       - name: Build macOS app
         run: |
-          fyne package -os darwin
+          GOARCH=${{ matrix.architecture }} fyne package -os darwin
         working-directory: ./app
 
       - name: Sign macOS app
@@ -40,33 +44,10 @@ jobs:
 
       - name: Create DMG file
         run: |
-          hdiutil create -format UDZO -srcfolder ./app/snail-installer.app ./app/snail-installer.dmg
-
-      - name: Upload macOS arm64 DMG artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: snail-macos-arm64.dmg
-          path: ./app/snail-installer.dmg
-
-      - name: Build macOS x86_64 app
-        run: |
-          GOARCH=amd64 fyne package -os darwin
-        working-directory: ./app
-
-      - name: Sign macOS x86_64 app
-        run: |
-          codesign --deep --force --verify --verbose --sign "-" ./app/snail-installer.app
-
-      - name: Remove previous DMG file
-        run: |
-          rm ./app/snail-installer.dmg
-
-      - name: Create DMG file
-        run: |
-          hdiutil create -format UDZO -srcfolder ./app/snail-installer.app ./app/snail-installer.dmg
+          hdiutil create -format UDZO -srcfolder ./app/snail-installer.app ./app/snail-installer-${{ matrix.architecture }}.dmg
 
       - name: Upload macOS DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: snail-macos-x86_64.dmg
-          path: ./app/snail-installer.dmg
+          name: snail-macos-${{ matrix.architecture }}.dmg
+          path: ./app/snail-installer-${{ matrix.architecture }}.dmg
