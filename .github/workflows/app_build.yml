@@ -12,7 +12,7 @@ jobs:
         include:
           - os: windows
             runner: windows-latest
-            architecture: x64
+            architecture: amd64
           - os: windows
             runner: windows-latest
             architecture: arm64
@@ -21,7 +21,7 @@ jobs:
             architecture: arm64
           - os: darwin
             runner: macos-15
-            architecture: x64
+            architecture: amd64
 
     runs-on: ${{ matrix.runner }}
 
@@ -45,20 +45,18 @@ jobs:
           go install fyne.io/tools/cmd/fyne@latest
         working-directory: ./app
 
-      - name: Set build environment
+      - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (bash)
+        if: ${{ matrix.os == 'darwin' }}
         run: |
-          if [ "${{ matrix.os }}" == "windows" ]; then
-            set GOOS=windows
-            set GOARCH=${{ matrix.architecture }}
-            set CGO_ENABLED=1
-          elif [ "${{ matrix.os }}" == "darwin" ]; then
-            export GOARCH=${{ matrix.architecture }}
-          fi
-        shell: cmd
+          GOARCH=${{ matrix.architecture }} fyne package -os ${{ matrix.os }}
+        working-directory: ./app
 
-      - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }})
+      - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (powershell)
+        if: ${{ matrix.os == 'windows' }}
         run: |
-          fyne package -os ${{ matrix.os }} -appVersion 1.0.0 -name snail-installer
+          $env:GOARCH='${{ matrix.architecture }}'
+          fyne package -os ${{ matrix.os }}
+        shell: pwsh
         working-directory: ./app
 
       - name: Create Windows ZIP file
