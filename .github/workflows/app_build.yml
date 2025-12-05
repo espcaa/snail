@@ -29,18 +29,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Move /app to root and remove everything else (bash)
+      - name: Move /app to root and remove everything else (bash fix)
         if: runner.os != 'Windows'
         run: |
           shopt -s dotglob
-          mv app/* ./
-          rm -rf $(ls -A | grep -v '^\.git$')
+          mv ./app/* .
+          shopt -u dotglob # Turn dotglob off
+          rm -rf app
+          find . -maxdepth 1 -mindepth 1 ! -name '.git' ! -name 'app' -exec rm -rf {} +
 
       - name: Move /app to root and remove everything else (powershell)
         if: runner.os == 'Windows'
         run: |
+          Get-ChildItem -Path . -Exclude .git, app | ForEach-Object { Remove-Item -Recurse -Force $_.FullName }
           Move-Item -Path .\app\* -Destination .\
-          Get-ChildItem -Exclude .git | Remove-Item -Recurse -Force
+          Remove-Item -Recurse -Force .\app
         shell: pwsh
 
       - name: Set up Go
