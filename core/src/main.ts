@@ -23,6 +23,30 @@ interface Config {
   themesEnabled: string[];
 }
 
+let mainWindow: Electron.BrowserWindow | null = null;
+
+ipcMain.on("SNAIL_INJECT_JS", (ev, code: string) => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    console.error("[snail] Cannot inject JS: no active main window");
+    return;
+  }
+
+  const wc = mainWindow.webContents;
+
+  if (wc.isLoading()) {
+    wc.once("did-finish-load", () => {
+      wc.executeJavaScript(code).catch((err) => {
+        console.error("[snail] Failed to inject JS after load:", err);
+      });
+    });
+    return;
+  }
+
+  wc.executeJavaScript(code).catch((err) => {
+    console.error("[snail] Failed to inject JS:", err);
+  });
+});
+
 const readConfig = (): Config => {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
@@ -237,6 +261,7 @@ app.once("browser-window-created", (ev, win) => {
   const pre = win.webContents.session.getPreloads() || [];
   if (!pre.includes(PRELOAD)) {
     win.webContents.session.setPreloads([...pre, PRELOAD]);
+    mainWindow = win;
   }
 });
 

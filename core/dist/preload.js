@@ -1,38 +1,55 @@
-var A=require("electron"),O={},V={},H={id:"",instance:null},U={},B=(k)=>{if(!H.id){console.error("[snail] registerPlugin called outside of a loading context.");return}let q=k;q.id=H.id,H.instance=q,console.log(`[snail] Plugin ${H.id} registered successfully.`);let z=U[H.id];if(z)z(!0),delete U[H.id]},W=(k,q)=>{let z=document.createElement("style");z.setAttribute("data-snail",q),z.textContent=k,document.head.appendChild(z)},E=(k,q)=>{let z=new Blob([k],{type:"text/javascript"}),D=URL.createObjectURL(z),J=document.createElement("script");J.type="module",J.src=D,J.setAttribute("data-snail",q);let K=`script-${q}-${crypto.randomUUID()}`;return J.id=K,(document.head||document.documentElement).appendChild(J),J.addEventListener("load",()=>{try{URL.revokeObjectURL(D)}catch{}}),K},G=(k,q)=>{return`
-    (function() {
-      const Snail = window.Snail;
-      const pluginId = '${k}';
+var z=require("electron"),E={},N=(k,q)=>{let v=document.createElement("style");v.setAttribute("data-snail",q),v.textContent=k,document.head.appendChild(v)},W=(k,q)=>{let v=new Blob([k],{type:"text/javascript"}),A=URL.createObjectURL(v),D=document.createElement("script");D.type="module",D.src=A,D.setAttribute("data-snail",q);let K=`script-${q}-${crypto.randomUUID()}`;return D.id=K,(document.head||document.documentElement).appendChild(D),D.addEventListener("load",()=>{try{URL.revokeObjectURL(A)}catch{}}),K},X=(k,q)=>`
+(function() {
+  const Snail = window.Snail;
+  const PLUGIN_ID = '${k}';
 
-      try {
-        ${q}
-      } catch (err) {
-        console.error('[snail][plugin:' + pluginId + '] plugin execution error', err);
+  try {
+    console.log('[snail][plugin:' + PLUGIN_ID + '] executing plugin code');
+
+    if (!window.SnailPlugins) window.SnailPlugins = {};
+
+    ${q}
+
+    console.log('[snail][plugin:' + PLUGIN_ID + '] plugin code executed');
+    const ExportedPlugin = window.SnailPlugins[PLUGIN_ID];
+
+    if (!ExportedPlugin) {
+      console.error('[snail][plugin:' + PLUGIN_ID + '] no exported plugin found');
+      return;
+    }
+
+    Snail.registerPlugin(PLUGIN_ID);
+
+    window.addEventListener("snail:startPlugin", function(e) {
+      console.log('[snail][plugin:' + PLUGIN_ID + '] received startPlugin event');
+      var evt = e; // e is a CustomEvent
+      if (evt.detail && evt.detail.id === PLUGIN_ID) {
+        console.log('[snail][plugin:' + PLUGIN_ID + '] starting plugin');
+        if (ExportedPlugin.start) ExportedPlugin.start();
       }
+    });
 
-      var isRunningCache = false;
-      setInterval(() => {
-        const currentlyRunning = Snail.isPluginRunning(pluginId);
+    window.addEventListener("snail:stopPlugin", function(e) {
+      console.log('[snail][plugin:' + PLUGIN_ID + '] received stopPlugin event');
+      var evt = e; // e is a CustomEvent
+      if (evt.detail && evt.detail.id === PLUGIN_ID) {
+        console.log('[snail][plugin:' + PLUGIN_ID + '] stopping plugin');
+        if (ExportedPlugin.stop) ExportedPlugin.stop();
+      }
+    });
 
-        const pluginData = Snail.pluginInstances[pluginId];
-        const inst = pluginData ? pluginData.instance : null;
-
-        if (currentlyRunning && !isRunningCache) {
-          try {
-              inst.start();
-              console.log('[snail][plugin:' + pluginId + '] start() invoked.');
-              isRunningCache = true;
-          } catch (e) {
-              console.error('[snail][plugin:' + pluginId + '] error during start():', e);
-          }
-        } else if (!currentlyRunning && isRunningCache) {
-          try {
-              inst.stop();
-              console.log('[snail][plugin:' + pluginId + '] stop() invoked.');
-              isRunningCache = false;
-          } catch (e) {
-              console.error('[snail][plugin:' + pluginId + '] error during stop():', e);
-          }
-        }
-      }, 100);
-    })();
-  `},X=()=>A.ipcRenderer.sendSync("SNAIL_GET_PLUGIN_LIST"),M=(k)=>A.ipcRenderer.sendSync("SNAIL_GET_PLUGIN_FILE",k),Y=async(k)=>{let q=M(k);if(!q)return console.warn(`[snail] Plugin file not found for ${k}`),!1;if(q.css)W(q.css,`plugin-${k}-style`);if(q.code){H={id:k,instance:null};let z=G(k,q.code),D=E(z,`plugin-${k}`),J=new Promise((N)=>{U[k]=N}),K=new Promise((N,$)=>setTimeout(()=>$(Error(`Timeout: registerPlugin not called for ${k}`)),1000)),Q=!1;try{await Promise.race([J,K]),Q=!!H.instance}catch(N){console.warn(`[snail] Plugin ${k} failed to load within time/error:`,N),Q=!1}if(Q)return V[k]=!0,O[k]={scriptId:D,instance:H.instance},console.log(`[snail] Plugin ${k} successfully initialized.`),!0;else return console.error(`[snail] Plugin ${k} failed to register.`),document.getElementById(D)?.remove(),document.querySelector(`style[data-snail="plugin-${k}-style"]`)?.remove(),!1}return!1},x=(k)=>{return!!V[k]},F=(k)=>{let q=O[k]?.instance;if(q&&typeof q.stop==="function")try{q.stop(),console.log(`[snail] Plugin ${k} stop() invoked during unload.`)}catch(z){console.error(`[snail] Error stopping ${k} during unload:`,z)}delete O[k],delete V[k],document.querySelectorAll(`script[data-snail="plugin-${k}"]`).forEach((z)=>z.remove()),document.querySelectorAll(`style[data-snail="plugin-${k}-style"]`).forEach((z)=>z.remove()),console.log(`[snail] Plugin ${k} fully unloaded.`)},Z=()=>A.ipcRenderer.sendSync("SNAIL_GET_THEME_LIST"),w=(k)=>A.ipcRenderer.sendSync("SNAIL_GET_THEME_FILE",k),_=(k)=>{let q=w(k);if(!q||!q.css)return console.warn(`[snail] Theme file not found or no CSS for ${k}`),!1;return W(q.css,`plugin-${k}-style`),!0},y=(k)=>{document.querySelectorAll(`style[data-snail="plugin-${k}-style"]`).forEach((q)=>q.remove()),console.log(`[snail] Theme ${k} unloaded.`)},C=(k)=>{let q=A.ipcRenderer.sendSync("SNAIL_ENABLE_THEME",k);if(q)_(k);return q},j=(k)=>{return y(k),A.ipcRenderer.sendSync("SNAIL_DISABLE_THEME",k)},b=async(k)=>{if(A.ipcRenderer.sendSync("SNAIL_ENABLE_PLUGIN",k))return await Y(k);return!1},v=(k)=>{return F(k),A.ipcRenderer.sendSync("SNAIL_DISABLE_PLUGIN",k)},L={registerPlugin:B,getPluginList:X,getThemeList:Z,enableTheme:C,disableTheme:j,enablePlugin:b,disablePlugin:v};A.contextBridge.exposeInMainWorld("Snail",{...L,isPluginRunning:x,pluginInstances:O});window.addEventListener("DOMContentLoaded",async()=>{try{let k=X();console.log(`[snail] Found ${k.length} plugins.`);for(let z of k)if(z.enabled){let D=await Y(z.id);console.log(D?`[snail] Loaded plugin: ${z.id}`:`[snail] Failed to load plugin: ${z.id}`)}let q=Z();console.log(`[snail] Found ${q.length} themes.`);for(let z of q)if(z.enabled){let D=_(z.id);console.log(D?`[snail] Loaded theme: ${z.id}`:`[snail] Failed to load theme: ${z.id}`)}}catch(k){console.error("[snail] error during DOMContentLoaded plugin load",k)}});
+  } catch (err) {
+    console.error('[snail][plugin:' + PLUGIN_ID + '] plugin execution error', err);
+  }
+})();
+`;function O(k){let q=E[k];if(!q)return;q.running=!0,Q(`
+  const event = new CustomEvent("snail:startPlugin", {
+    detail: { id: "${k}" },
+  });
+  window.dispatchEvent(event);
+  `),console.log(`[snail] Plugin started: ${k}`)}function Y(k){let q=E[k];if(!q)return;q.running=!1,Q(`
+  const event = new CustomEvent("snail:stopPlugin", {
+    detail: { id: "${k}" },
+  });
+  window.dispatchEvent(event);
+  `),console.log(`[snail] Plugin stopped: ${k}`)}var H=()=>z.ipcRenderer.sendSync("SNAIL_GET_PLUGIN_LIST"),Z=(k)=>z.ipcRenderer.sendSync("SNAIL_GET_PLUGIN_FILE",k);function Q(k){z.ipcRenderer.send("SNAIL_INJECT_JS",k)}var _=(k)=>{let q=Z(k);if(!q)return console.warn(`[snail] Plugin file not found for ${k}`),!1;if(q.css)N(q.css,`plugin-${k}-style`);if(q.code){let v=X(k,q.code),A=W(v,`plugin-${k}`);return E[k]={scriptID:A},!0}else return console.warn(`[snail] No code found in plugin file for ${k}`),!1},U=()=>z.ipcRenderer.sendSync("SNAIL_GET_THEME_LIST"),$=(k)=>z.ipcRenderer.sendSync("SNAIL_GET_THEME_FILE",k),V=(k)=>{console.log(`[snail] Theme ${k} loaded.`);let q=$(k);if(!q||!q.css)return console.warn(`[snail] Theme file not found or no CSS for ${k}`),!1;return N(q.css,`plugin-${k}-style`),!0},x=(k)=>{document.querySelectorAll(`style[data-snail="plugin-${k}-style"]`).forEach((q)=>q.remove()),console.log(`[snail] Theme ${k} unloaded.`)},B=(k)=>{let q=z.ipcRenderer.sendSync("SNAIL_ENABLE_THEME",k);return V(k),q},G=(k)=>{return x(k),z.ipcRenderer.sendSync("SNAIL_DISABLE_THEME",k)},M=(k)=>{if(z.ipcRenderer.sendSync("SNAIL_ENABLE_PLUGIN",k)){try{O(k)}catch(v){return console.error(`[snail][plugin:${k}] error during enable`,v),!1}return!0}return!1},w=(k)=>{try{Y(k)}catch(q){return console.error(`[snail][plugin:${k}] error during disable`,q),!1}return z.ipcRenderer.sendSync("SNAIL_DISABLE_PLUGIN",k)},F=(k)=>{if(console.log(`[snail] Registering plugin: ${k}`),E[k]={scriptID:E[k]?.scriptID||"",running:!1},console.log(`[snail] Plugin registered: ${k}`),H().find((q)=>q.id===k)?.enabled)O(k)},J={getPluginList:H,getThemeList:U,enableTheme:B,disableTheme:G,enablePlugin:M,disablePlugin:w,registerPlugin:F};z.contextBridge.exposeInMainWorld("Snail",{...J,plugins:E});window.addEventListener("DOMContentLoaded",async()=>{try{let k=H();console.log(`[snail] Found ${k.length} plugins.`);for(let v of k){let A=_(v.id);console.log(A?`[snail] Loaded plugin: ${v.id}`:`[snail] Failed to load plugin: ${v.id}`)}let q=U();console.log(`[snail] Found ${q.length} themes.`);for(let v of q)if(v.enabled){let A=V(v.id);console.log(A?`[snail] Loaded theme: ${v.id}`:`[snail] Failed to load theme: ${v.id}`)}}catch(k){console.error("[snail] error during DOMContentLoaded plugin load",k)}});

@@ -7,7 +7,7 @@
         "bun": "^1.3.3",
         "electron": "^39.2.5",
         "electron-devtools-installer": "^4.0.0",
-        "snail-plugin-api": "1.3.4",
+        "snail-plugin-api": "1.4.0",
       },
     },
   },
@@ -186,7 +186,7 @@
 
     "setimmediate": ["setimmediate@1.0.5", "", {}, "sha512-MATJdZp8sLqDl/68LfQmbP8zKPLQNV6BIZoIgrscFDQ+RsvK/BxeDQOgyxKKoh0y/8h3BqVFnCqQ/gd+reiIXA=="],
 
-    "snail-plugin-api": ["snail-plugin-api@1.3.4", "", { "dependencies": { "@types/node": "^24.10.1", "typescript": "^5.9.3" } }, "sha512-BZ89wjRQNWNPNyXQqzMFJwcXxBet7rwWJLe9Rn47xjVQFwTm/K4lesSEzs0sp2fCseGob+zIP2tci3Hq3yG0XQ=="],
+    "snail-plugin-api": ["snail-plugin-api@1.4.0", "", { "dependencies": { "@types/node": "^24.10.1", "typescript": "^5.9.3" } }, "sha512-d3OvEivxGigpb8LfPeDFaSQ6GApYaAzMGw0P6u6cYGLutH3cHYA9DLwD47euHm3OO+kM2D1o1ZJdDhqA9Vm5uQ=="],
 
     "sprintf-js": ["sprintf-js@1.1.3", "", {}, "sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA=="],
 

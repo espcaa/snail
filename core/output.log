@@ -1,0 +1,64 @@
+Initializing local storage instance
+Starting Sentry
+[12/05/25, 16:03:46:742] info: 
+╔═════════════════════════════════════════════════╗
+║      Slack 4.47.65, darwin 24.6.0 on arm64      ║
+╚═════════════════════════════════════════════════╝ 
+[12/05/25, 16:03:46:742] info: Configured logger via 
+{
+  "enableConsoleTransport": true,
+  "identifierOverride": "webapp-service-worker-console",
+  "loggerInstanceCount": 2
+}
+[12/05/25, 16:03:46:742] info: Predefined values for process 
+{
+  "NODE_ENV": "production",
+  "platform": "darwin",
+  "type": "browser",
+  "timeZone": "Europe/Paris",
+  "PACKAGE_MANIFEST.productName": "Slack",
+  "PACKAGE_MANIFEST.version": "4.47.65",
+  "PACKAGE_MANIFEST.commit": "8b529e5",
+  "PACKAGE_MANIFEST.branch": "HEAD"
+}
+[12/05/25, 16:03:46:837] info: 
+╔═════════════════════════════════════════════════╗
+║      Slack 4.47.65, darwin 24.6.0 on arm64      ║
+╚═════════════════════════════════════════════════╝ 
+[12/05/25, 16:03:46:838] info: Configured logger via 
+{
+  "enableConsoleTransport": true,
+  "identifierOverride": "webapp-console",
+  "loggerInstanceCount": 3
+}
+[12/05/25, 16:03:46:838] info: Predefined values for process 
+{
+  "NODE_ENV": "production",
+  "platform": "darwin",
+  "type": "browser",
+  "timeZone": "Europe/Paris",
+  "PACKAGE_MANIFEST.productName": "Slack",
+  "PACKAGE_MANIFEST.version": "4.47.65",
+  "PACKAGE_MANIFEST.commit": "8b529e5",
+  "PACKAGE_MANIFEST.branch": "HEAD"
+}
+Added extension: [object Object]
+[12/05/25, 16:03:46:972] info: Boots up new service worker version 
+{
+  "scriptUrl": "https://app.slack.com/service-worker.js",
+  "scope": "https://app.slack.com/",
+  "renderProcessId": 4,
+  "versionId": 86
+}
+[12/05/25, 16:03:46:972] info: Dec-05 16:03:46.971 [SERVICE-WORKER] normalizing request URL for cache https://app.slack.com/client/E09V59WQY1E 
+{
+  "versionId": 86
+}
+[12/05/25, 16:03:46:972] info: Dec-05 16:03:46.972 [SERVICE-WORKER] Sonic on Gantry-v2 Enabled, serving client-v2.html 
+{
+  "versionId": 86
+}
+[12/05/25, 16:03:46:973] info: Dec-05 16:03:46.973 [SERVICE-WORKER] responding from cache (normalized) /boot/client-v2.html 
+{
+  "versionId": 86
+}
