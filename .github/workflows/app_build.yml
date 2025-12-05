@@ -14,7 +14,7 @@ jobs:
             runner: windows-latest
             architecture: amd64
           - os: windows
-            runner: windows-latest
+            runner: windows-11-arm
             architecture: arm64
           - os: darwin
             runner: macos-15
@@ -71,15 +71,12 @@ jobs:
           fyne package -os ${{ matrix.os }}
         shell: pwsh
 
-      - name: Build app Windows ARM64 with Clang
+      - name: Build app Windows ARM64
         if: ${{ matrix.os == 'windows' && matrix.architecture == 'arm64' }}
-        shell: pwsh
         run: |
           $env:GOARCH='arm64'
-          $env:CGO_ENABLED='1'
-          $env:CC='clang'
-          $env:CXX='clang++'
-          fyne package -os windows
+          fyne package -os windows -name snail-installer.exe
+        shell: pwsh
 
       - name: Create Windows ZIP file
         if: ${{ matrix.os == 'windows' }}
