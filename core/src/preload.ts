@@ -4,8 +4,9 @@ import {
   SnailAPI,
   ThemeListItem,
   PluginListItem,
-  Plugin,
 } from "snail-plugin-api";
+import { setupWebpackHelpers } from "./utils/webpack";
+import { setupReactPatch } from "./utils/react";
 
 const plugins: {
   [pluginId: string]: {
@@ -21,31 +22,20 @@ const injectCSS = (code: string, id: string): void => {
   document.head.appendChild(style);
 };
 
-const injectModuleScript = (moduleSource: string, id: string): string => {
-  const blob = new Blob([moduleSource], { type: "text/javascript" });
-  const url = URL.createObjectURL(blob);
-  const script = document.createElement("script");
-  script.type = "module";
-  script.src = url;
-  script.setAttribute("data-snail", id);
-  const scriptId = `script-${id}-${crypto.randomUUID()}`;
-  script.id = scriptId;
-
-  (document.head || document.documentElement).appendChild(script);
-
-  script.addEventListener("load", () => {
-    try {
-      URL.revokeObjectURL(url);
-    } catch {}
-  });
-
-  return scriptId;
-};
-
 const wrapPluginCode = (pluginId: string, code: string): string => `
 (function() {
   const Snail = window.Snail;
   const PLUGIN_ID = '${pluginId}';
+
+  // webpack helpers
+
+  try {
+    (${setupWebpackHelpers.toString()})();;
+  } catch (e) {
+    console.error('[snail][plugin:' + PLUGIN_ID + '] error setting up webpack helpers', e);
+  }
+
+  // plugin code
 
   try {
     console.log('[snail][plugin:' + PLUGIN_ID + '] executing plugin code');
@@ -156,10 +146,8 @@ const loadPlugin = (pluginId: string): boolean => {
 
   if (file.code) {
     const wrapped = wrapPluginCode(pluginId, file.code);
-    const scriptId = injectModuleScript(wrapped, `plugin-${pluginId}`);
-    plugins[pluginId] = {
-      scriptID: scriptId,
-    };
+    // inject the js
+    injectJS(wrapped);
     return true;
   } else {
     console.warn(`[snail] No code found in plugin file for ${pluginId}`);
@@ -261,6 +249,20 @@ contextBridge.exposeInMainWorld("Snail", {
 
 window.addEventListener("DOMContentLoaded", async () => {
   try {
+    // load the webpack & react helpers
+    injectJS(`
+      (function() {
+        try {
+          (${setupWebpackHelpers.toString()})();
+          console.log(${setupReactPatch.toString()});
+          (${setupReactPatch.toString()})();
+        } catch (e) {
+          console.error('[snail] error during setup', e);
+        }
+      })();
+    `);
+
+    // load plugins
     const plugins = getPluginList();
     console.log(`[snail] Found ${plugins.length} plugins.`);
 
@@ -273,6 +275,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       );
     }
 
+    // load themes
     const themes = getThemeList();
     console.log(`[snail] Found ${themes.length} themes.`);
 

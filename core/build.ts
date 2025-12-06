@@ -5,7 +5,7 @@ async function run() {
   await build({
     entryPoints: ["./src/main.ts", "./src/preload.ts"],
     outdir: "./dist",
-    minify: true,
+    minify: false,
     target: "node",
     format: "cjs",
     external: ["electron"],
