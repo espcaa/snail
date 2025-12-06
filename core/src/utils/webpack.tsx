@@ -1,5 +1,4 @@
 // jeremy \o/
-import { React } from "snail-plugin-api";
 
 export function setupWebpackHelpers() {
   const global = globalThis as any;
@@ -92,6 +91,7 @@ export function setupWebpackHelpers() {
 
     if (!found) {
       return () => (
+        // @ts-ignore
         <div style={{ color: "red", fontWeight: "bold" }}>
           ⚠️ Missing component: {name}
         </div>
