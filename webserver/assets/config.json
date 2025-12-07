@@ -1,5 +1,5 @@
 {
-  "serverUrl": "https://snail.hackclub.cc",
+  "serverUrl": "https://assets.snail.hackclub.cc",
   "pluginsEnabled": ["snail-plugin-manager"],
   "themesEnabled": [],
   "loaderVersion": "INJECT_LOADER_VERSION"

@@ -2,5 +2,6 @@ node_modules
 dist/
 .DS_Store
 .env
-webserver/assets/*
+webserver/assets/preload.js
+webserver/assets/main.js
 */.current_tag
