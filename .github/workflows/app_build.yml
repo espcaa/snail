@@ -3,6 +3,8 @@ name: snail app build
 on:
   push:
     branches: ["main"]
+    paths:
+      - "app/**"
   workflow_dispatch:
 
 jobs:
