@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -147,11 +148,19 @@ func buildLoader() error {
 		return fmt.Errorf("failed to run temp.sh: %w", err)
 	}
 
-	mvCmd := exec.Command("mv", "dist/*", "../webserver/assets/")
-	mvCmd.Dir = "../core/"
-	mvCmd.Env = os.Environ()
-	if err := mvCmd.Run(); err != nil {
-		return fmt.Errorf("failed to move dist files: %w", err)
+	distPath := "../core/dist"
+	dstPath := "../webserver/assets"
+
+	files, err := filepath.Glob(filepath.Join(distPath, "*"))
+	if err != nil {
+		return fmt.Errorf("failed to list dist files: %w", err)
+	}
+
+	for _, f := range files {
+		dst := filepath.Join(dstPath, filepath.Base(f))
+		if err := os.Rename(f, dst); err != nil {
+			return fmt.Errorf("failed to move file %s: %w", f, err)
+		}
 	}
 
 	return nil
