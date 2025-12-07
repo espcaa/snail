@@ -9954,7 +9954,9 @@ import_electron.ipcMain.on("SNAIL_GET_PLUGIN_LIST", (e) => {
         enabled: cfg.pluginsEnabled.includes(id),
         name: manifest.name || id,
         description: manifest.description || "",
-        version: manifest.version || "1.0.0"
+        version: manifest.version || "1.0.0",
+        author: manifest.author,
+        icon: manifest.icon
       };
     }).filter(Boolean);
     e.returnValue = plugins;
@@ -10011,7 +10013,9 @@ import_electron.ipcMain.on("SNAIL_GET_THEME_LIST", (e) => {
         enabled: cfg.themesEnabled.includes(id),
         name: manifest.name || id,
         description: manifest.description || "",
-        version: manifest.version || "1.0.0"
+        version: manifest.version || "1.0.0",
+        author: manifest.author,
+        icon: manifest.icon
       };
     }).filter(Boolean);
     e.returnValue = themes;

@@ -150,6 +150,8 @@ ipcMain.on("SNAIL_GET_PLUGIN_LIST", (e) => {
           name: manifest.name || id,
           description: manifest.description || "",
           version: manifest.version || "1.0.0",
+          author: manifest.author,
+          icon: manifest.icon,
         };
       })
       .filter(Boolean) as PluginListItem[];
@@ -215,6 +217,8 @@ ipcMain.on("SNAIL_GET_THEME_LIST", (e) => {
           name: manifest.name || id,
           description: manifest.description || "",
           version: manifest.version || "1.0.0",
+          author: manifest.author,
+          icon: manifest.icon,
         };
       })
       .filter(Boolean) as ThemeListItem[];

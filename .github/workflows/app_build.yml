@@ -11,10 +11,10 @@ jobs:
       matrix:
         include:
           - os: windows
-            runner: windows-latest
+            runner: ubuntu-latest
             architecture: amd64
           - os: windows
-            runner: windows-11-arm
+            runner: ubuntu-latest
             architecture: arm64
           - os: darwin
             runner: macos-15
@@ -29,22 +29,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Move /app to root and remove everything else (bash fix)
-        if: runner.os != 'Windows'
+      - name: Move /app to root and remove everything else
         run: |
           shopt -s dotglob
           find . -maxdepth 1 -mindepth 1 !  -name '. git' ! -name 'app' -exec rm -rf {} +
           mv ./app/* .
           shopt -u dotglob
           rm -rf app
-
-      - name: Move /app to root and remove everything else (Windows fix)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Get-ChildItem -Path . -Force | Where-Object { $_.Name -notin ".git","app" } | Remove-Item -Recurse -Force
-          Get-ChildItem -Path .\app -Force | Move-Item -Destination .\ -Force
-          Remove-Item -Recurse -Force .\app
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -55,34 +46,29 @@ jobs:
         run: |
           go mod download
 
-      - name: Install the Fyne CLI
+      - name: Install the Fyne CLI (macos builds)
         run: |
           go install fyne.io/tools/cmd/fyne@latest
+
+      - name: Install fyne-cross (windows builds)
+        if: ${{ matrix.os == 'windows' }}
+        run: |
+          go install github.com/fyne-io/fyne-cross@latest
 
       - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (bash)
         if: ${{ matrix. os == 'darwin' }}
         run: |
           GOARCH=${{ matrix.architecture }} fyne package -os ${{ matrix.os }}
 
-      - name: Build app (${{ matrix. os }} - ${{ matrix.architecture }}) (powershell)
-        if: ${{ matrix.os == 'windows' && matrix.architecture != 'arm64' }}
+      - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (fyne-cross)
+        if: ${{ matrix.os == 'windows' }}
         run: |
-          $env:GOARCH='${{ matrix.architecture }}'
-          fyne package -os ${{ matrix.os }}
-        shell: pwsh
-
-      - name: Build app Windows ARM64
-        if: ${{ matrix.os == 'windows' && matrix.architecture == 'arm64' }}
-        run: |
-          $env:GOARCH='arm64'
-          fyne package -os windows -name snail-installer.exe
-        shell: pwsh
+          fyne-cross windows -arch=${{ matrix.architecture }} -name snail-installer-${{ matrix.os }}-${{ matrix.architecture }}
 
       - name: Create Windows ZIP file
         if: ${{ matrix.os == 'windows' }}
         run: |
-          Compress-Archive -Path ./snail-installer.exe -DestinationPath ./snail-installer-${{ matrix. architecture }}.zip
-        shell: pwsh
+          zip -r snail-installer-${{ matrix.architecture }}.zip ./snail-installer-windows-${{ matrix.architecture }}.exe
 
       - name: Sign macOS app
         if: ${{ matrix.os == 'darwin' }}

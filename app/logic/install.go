@@ -159,6 +159,21 @@ func InstallSomething(opts InstallOptions) error {
 		println("Removed temporary directory:", tempDir)
 	}
 
+	// macos: patch UTI
+	if runtime.GOOS == "darwin" {
+		err = PatchSnailUTIMacos(opts.TargetPath)
+		if err != nil {
+			return fmt.Errorf("failed to patch macOS UTI: %w", err)
+		}
+		println("Patched macOS UTI for Snail files.")
+	}
+
+	// remove electron fuses
+	err = removeElectronFuses(opts.TargetPath, jsRuntimeName)
+	if err != nil {
+		return fmt.Errorf("failed to remove electron fuses: %w", err)
+	}
+
 	// macOS: code sign the app
 	if runtime.GOOS == "darwin" {
 		err = codeSignMacOS(opts.TargetPath)
@@ -166,12 +181,6 @@ func InstallSomething(opts InstallOptions) error {
 			return fmt.Errorf("failed to code sign macOS app: %w", err)
 		}
 		println("Code signed macOS app at:", opts.TargetPath)
-	}
-
-	// remove electron fuses
-	err = removeElectronFuses(opts.TargetPath, jsRuntimeName)
-	if err != nil {
-		return fmt.Errorf("failed to remove electron fuses: %w", err)
 	}
 
 	return nil
@@ -412,5 +421,47 @@ func removeElectronFuses(asarPath string, jsRuntime string) error {
 	if err != nil {
 		return fmt.Errorf("failed to remove electron fuses: %s, %w", string(output), err)
 	}
+	return nil
+}
+
+func PatchSnailUTIMacos(appPath string) error {
+	plistPath := filepath.Join(appPath, "Contents", "Info.plist")
+
+	commands := [][]string{
+		// CFBundleDocumentTypes
+		{"Add", ":CFBundleDocumentTypes:0", "dict"},
+		{"Add", ":CFBundleDocumentTypes:0:CFBundleTypeName", "string", "Snail File"},
+		{"Add", ":CFBundleDocumentTypes:0:CFBundleTypeRole", "string", "Editor"},
+		{"Add", ":CFBundleDocumentTypes:0:LSItemContentTypes", "array"},
+		{"Add", ":CFBundleDocumentTypes:0:LSItemContentTypes:0", "string", "com.silly.snail"},
+
+		// UTExportedTypeDeclarations
+		{"Add", ":UTExportedTypeDeclarations:0", "dict"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeIdentifier", "string", "com.silly.snail"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeDescription", "string", "Snail File"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeConformsTo", "array"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeConformsTo:0", "string", "public.data"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeTagSpecification", "dict"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.filename-extension", "string", "snail"},
+		{"Add", ":UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.mime-type", "string", "application/x-snail"},
+	}
+
+	for _, args := range commands {
+		cmd := exec.Command("/usr/libexec/PlistBuddy", append([]string{"-c"}, args...)...)
+		cmd.Args = append(cmd.Args, plistPath)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("PlistBuddy error: %v, output: %s", err, string(output))
+		}
+	}
+
+	if err := exec.Command("touch", appPath).Run(); err != nil {
+		return fmt.Errorf("failed to touch app bundle: %v", err)
+	}
+	lsregister := "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+	if err := exec.Command(lsregister, "-f", appPath).Run(); err != nil {
+		return fmt.Errorf("failed to refresh Launch Services: %v", err)
+	}
+
 	return nil
 }
