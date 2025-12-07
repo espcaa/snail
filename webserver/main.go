@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +21,7 @@ type Info struct {
 }
 
 func main() {
+	fetchLatestContent()
 	godotenv.Load()
 
 	port := 8080
@@ -41,11 +42,35 @@ func main() {
 
 	r.Get("/assets/*", func(w http.ResponseWriter, r *http.Request) {
 		file := r.URL.Path[len("/assets/"):]
+		if file == "config.json" {
+			// change INJECT_LOADER_VERSION to the latest tag from github
+			tag, err := getLatestGitHubTag()
+			if err != nil {
+				tag = "unknown"
+			}
+			// use regexp to replace INJECT_LOADER_VERSION in config.json
+			// load config.json
+			configFile, err := os.ReadFile("./assets/config.json")
+			if err != nil {
+				http.Error(w, "Could not read config.json", http.StatusInternalServerError)
+				return
+			}
+			var config map[string]any
+			err = json.Unmarshal(configFile, &config)
+			if err != nil {
+				http.Error(w, "Could not parse config.json", http.StatusInternalServerError)
+				return
+			}
+			config["loaderVersion"] = tag
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(config)
+			return
+		}
 		http.ServeFile(w, r, "./assets/"+file)
 	})
 
 	r.Get("/info.json", func(w http.ResponseWriter, r *http.Request) {
-		tag, err := getLatestGitHubTag("espcaa", "snail")
+		tag, err := getLatestGitHubTag()
 		if err != nil {
 			// send a version: unknown
 			info := Info{Version: "unknown"}
@@ -72,25 +97,60 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func getLatestGitHubTag(owner, repo string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
-	resp, err := http.Get(url)
+func getLatestGitHubTag() (string, error) {
+	cmd := "git describe --tags --abbrev=0"
+	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	if len(out) == 0 {
+		return "unknown", nil
+	}
+	tag := string(out)
+	return tag, nil
+}
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+func fetchLatestContent() {
+	// builds the latest version of prealod.js and main.js if the release tag changed
+
+	latestTag, err := getLatestGitHubTag()
+	if err != nil {
+		log.Println("No tag found!")
+		latestTag = "none"
 	}
 
-	var data struct {
-		TagName string `json:"tag_name"`
+	currentTag, err := loadCurrentTag()
+	if err != nil || currentTag != latestTag {
+		log.Println("New version detected:", latestTag)
+		err := buildLoader()
+		if err != nil {
+			log.Println("Error building loader:", err)
+			return
+		}
+		err = saveCurrentTag(latestTag)
+		if err != nil {
+			log.Println("Error saving current tag:", err)
+			return
+		}
+		log.Println("Loader built successfully for version:", latestTag)
+	} else {
+		log.Println("No new version detected. Current version is up to date:", currentTag)
 	}
+}
 
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+func buildLoader() error {
+	cmd := exec.Command("bash", "-c", "cd ../core/ && sh temp.sh && mv dist/* ../webserver/assets/")
+	return cmd.Run()
+}
+
+func saveCurrentTag(tag string) error {
+	return os.WriteFile(".current_tag", []byte(tag), 0644)
+}
+
+func loadCurrentTag() (string, error) {
+	data, err := os.ReadFile(".current_tag")
+	if err != nil {
 		return "", err
 	}
-
-	return data.TagName, nil
+	return string(data), nil
 }
