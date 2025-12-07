@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/container"
 )
 
-var baseServerUrl = "https://snail.hackclub.cc"
+var baseServerUrl = "https://assets.snail.hackclub.cc"
 
 func main() {
 
