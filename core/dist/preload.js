@@ -88,13 +88,79 @@ function setupWebpackHelpers() {
     return all ? [...results] : null;
   }
   function findComponent(name, all = false, filter) {
-    const found = findExport((exp) => typeof exp === "function" && exp.displayName === name && (!filter || filter(exp)), all);
-    if (!found) {
-      return () => /* @__PURE__ */ React.createElement("div", {
-        style: { color: "red", fontWeight: "bold" }
-      }, "⚠️ Missing component: ", name);
+    const exports2 = allExports();
+    const results = new Set;
+    const isMatch = (exp) => {
+      if (typeof exp !== "function" && typeof exp !== "object")
+        return false;
+      if (!exp)
+        return false;
+      try {
+        if (exp.displayName === name)
+          return true;
+        if (typeof exp === "function" && exp.name === name)
+          return true;
+        if (exp.$$typeof) {
+          if (exp.type?.displayName === name)
+            return true;
+          if (exp.type?.name === name)
+            return true;
+          if (exp.type?.type?.displayName === name)
+            return true;
+          if (exp.type?.type?.name === name)
+            return true;
+          if (exp.type?.render?.displayName === name)
+            return true;
+          if (exp.type?.render?.name === name)
+            return true;
+          if (exp.render?.displayName === name)
+            return true;
+          if (exp.render?.name === name)
+            return true;
+        }
+        if (exp.prototype?.isReactComponent && exp.name === name)
+          return true;
+        if (exp._reactName === name)
+          return true;
+        if (exp.Provider && exp.Consumer) {
+          if (exp.displayName === name)
+            return true;
+          if (exp._context?.displayName === name)
+            return true;
+        }
+        if (exp.styledComponentId && exp.displayName === name)
+          return true;
+      } catch {
+        return false;
+      }
+      return false;
+    };
+    for (const exp of exports2) {
+      try {
+        if (isMatch(exp)) {
+          if (!all)
+            return exp;
+          results.add(exp);
+        }
+      } catch {}
+      for (const key in exp) {
+        if (!Object.prototype.hasOwnProperty.call(exp, key))
+          continue;
+        try {
+          const candidate = exp[key];
+          if (isMatch(candidate)) {
+            if (!all)
+              return candidate;
+            results.add(candidate);
+          }
+        } catch {}
+      }
     }
-    return found;
+    if (all)
+      return [...results];
+    return () => /* @__PURE__ */ React.createElement("div", {
+      style: { color: "red", fontWeight: "bold" }
+    }, "⚠️ Missing component: ", name);
   }
   global.webpackHelpers = {
     allExports,
