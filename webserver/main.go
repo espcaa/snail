@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -139,8 +140,21 @@ func fetchLatestContent() {
 }
 
 func buildLoader() error {
-	cmd := exec.Command("bash", "-c", "cd ../core/ && sh temp.sh && mv dist/* ../webserver/assets/")
-	return cmd.Run()
+	cmd := exec.Command("sh", "temp.sh")
+	cmd.Dir = "../core/"
+	cmd.Env = os.Environ()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run temp.sh: %w", err)
+	}
+
+	mvCmd := exec.Command("mv", "dist/*", "../webserver/assets/")
+	mvCmd.Dir = "../core/"
+	mvCmd.Env = os.Environ()
+	if err := mvCmd.Run(); err != nil {
+		return fmt.Errorf("failed to move dist files: %w", err)
+	}
+
+	return nil
 }
 
 func saveCurrentTag(tag string) error {
