@@ -22,7 +22,6 @@ func NewSettingsPage(win fyne.Window) fyne.CanvasObject {
 	}
 
 	return container.NewVBox(
-		widget.NewLabel("Settings Page"),
 		container.NewPadded(
 			container.NewVBox(
 				widget.NewLabel("Server URL:"),
