@@ -32,7 +32,7 @@ jobs:
       - name: Move /app to root and remove everything else
         run: |
           shopt -s dotglob
-          find . -maxdepth 1 -mindepth 1 !  -name '. git' ! -name 'app' -exec rm -rf {} +
+          find . -maxdepth 1 -mindepth 1 !  -name '.git' ! -name 'app' -exec rm -rf {} +
           mv ./app/* .
           shopt -u dotglob
           rm -rf app
@@ -47,6 +47,7 @@ jobs:
           go mod download
 
       - name: Install the Fyne CLI (macos builds)
+        if: ${{ matrix.os == 'darwin' }}
         run: |
           go install fyne.io/tools/cmd/fyne@latest
 
@@ -56,14 +57,14 @@ jobs:
           go install github.com/fyne-io/fyne-cross@latest
 
       - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (bash)
-        if: ${{ matrix. os == 'darwin' }}
+        if: ${{ matrix.os == 'darwin' }}
         run: |
           GOARCH=${{ matrix.architecture }} fyne package -os ${{ matrix.os }}
 
       - name: Build app (${{ matrix.os }} - ${{ matrix.architecture }}) (fyne-cross)
         if: ${{ matrix.os == 'windows' }}
         run: |
-          fyne-cross windows -arch=${{ matrix.architecture }} -name snail-installer-${{ matrix.os }}-${{ matrix.architecture }}
+          fyne-cross windows -arch=${{ matrix.architecture }} -name snail-installer-${{ matrix.os }}-${{ matrix.architecture }} --app-id com.espcaa.snail
 
       - name: Create Windows ZIP file
         if: ${{ matrix.os == 'windows' }}
@@ -83,5 +84,5 @@ jobs:
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os == 'windows' && format('snail-installer-{0}. zip', matrix.architecture) || format('snail-macos-{0}.dmg', matrix.architecture) }}
-          path: ${{ matrix.os == 'windows' && format('snail-installer-{0}.zip', matrix. architecture) || format('snail-installer-{0}.dmg', matrix.architecture) }}
+          name: snail-installer-${{ matrix.os }}-${{ matrix.architecture }}
+          path: ${{ matrix.os == 'windows' && format('./snail-installer-{0}.zip', matrix.architecture) || format('./snail-installer-{0}.dmg', matrix.architecture) }}
