@@ -66,11 +66,6 @@ jobs:
         run: |
           fyne-cross windows -arch=${{ matrix.architecture }} -name snail-installer-${{ matrix.os }}-${{ matrix.architecture }} --app-id com.espcaa.snail
 
-      - name: Create Windows ZIP file
-        if: ${{ matrix.os == 'windows' }}
-        run: |
-          zip -r snail-installer-${{ matrix.architecture }}.zip ./snail-installer-windows-${{ matrix.architecture }}.exe
-
       - name: Sign macOS app
         if: ${{ matrix.os == 'darwin' }}
         run: |
@@ -85,4 +80,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: snail-installer-${{ matrix.os }}-${{ matrix.architecture }}
-          path: ${{ matrix.os == 'windows' && format('./snail-installer-{0}.zip', matrix.architecture) || format('./snail-installer-{0}.dmg', matrix.architecture) }}
+          path: ${{ matrix.os == 'windows' && format('./fyne-cross/dist/windows-{0}/snail-installer-windows-{0}.zip', matrix.architecture) || format('./snail-installer-{0}.dmg', matrix.architecture) }}
