@@ -347,56 +347,70 @@ ipcMain.on("SNAIL_CHECK_LOADER_UPDATE", (e) => {
 });
 
 // ---------- Plugin install helpers ----------
-ipcMain.on("SNAIL_INSTALL_NEW_PLUGIN", async () => {
+ipcMain.handle("SNAIL_INSTALL_NEW_PLUGIN", async (event) => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ["openFile"],
     filters: [{ name: ".zip Files", extensions: ["zip"] }],
   });
   if (canceled || filePaths.length === 0) {
     console.log("[snail] Plugin installation canceled.");
-    return;
+    return { success: false, message: "Installation canceled" };
   }
   const zipPath = filePaths[0];
   console.log(`[snail] Selected plugin zip: ${zipPath}`);
 
   // unzip and put in ~/.snail/plugins (if the folder already exists, overwrite)
-  const yauzl = require("yauzl");
-  yauzl.open(zipPath, { lazyEntries: true }, (err: any, zipfile: any) => {
-    if (err) {
-      console.error("[snail] Failed to open zip file:", err);
-      return;
-    }
-    zipfile.readEntry();
-    zipfile.on("entry", (entry: any) => {
-      const filePath = path.join(PLUGINS_DIR, entry.fileName);
-      if (entry.fileName.endsWith("/")) {
-        // Directory
-        // Check if it's in ~/.snail/plugins
-        if (!filePath.startsWith(PLUGINS_DIR)) {
-          console.error(`[snail] Invalid plugin structure: ${entry.fileName}`);
-          zipfile.close();
-          return;
-        }
-        fs.mkdirSync(filePath, { recursive: true });
-        zipfile.readEntry();
-      } else {
-        // File
-        zipfile.openReadStream(entry, (err: any, readStream: any) => {
-          if (err) {
-            console.error("[snail] Failed to read zip entry:", err);
+  return new Promise((resolve) => {
+    const yauzl = require("yauzl");
+    yauzl.open(zipPath, { lazyEntries: true }, (err: any, zipfile: any) => {
+      if (err) {
+        console.error("[snail] Failed to open zip file:", err);
+        resolve({
+          success: false,
+          message: `Failed to open zip: ${err.message}`,
+        });
+        return;
+      }
+      zipfile.readEntry();
+      zipfile.on("entry", (entry: any) => {
+        const filePath = path.join(PLUGINS_DIR, entry.fileName);
+        if (entry.fileName.endsWith("/")) {
+          // Directory
+          // Check if it's in ~/.snail/plugins
+          if (!filePath.startsWith(PLUGINS_DIR)) {
+            console.error(
+              `[snail] Invalid plugin structure: ${entry.fileName}`,
+            );
+            zipfile.close();
+            resolve({ success: false, message: "Invalid plugin structure" });
             return;
           }
-          fs.mkdirSync(path.dirname(filePath), { recursive: true });
-          const writeStream = fs.createWriteStream(filePath);
-          readStream.pipe(writeStream);
-          readStream.on("end", () => {
-            zipfile.readEntry();
+          fs.mkdirSync(filePath, { recursive: true });
+          zipfile.readEntry();
+        } else {
+          // File
+          zipfile.openReadStream(entry, (err: any, readStream: any) => {
+            if (err) {
+              console.error("[snail] Failed to read zip entry:", err);
+              resolve({
+                success: false,
+                message: `Failed to read zip entry: ${err.message}`,
+              });
+              return;
+            }
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+            const writeStream = fs.createWriteStream(filePath);
+            readStream.pipe(writeStream);
+            readStream.on("end", () => {
+              zipfile.readEntry();
+            });
           });
-        });
-      }
-    });
-    zipfile.on("end", () => {
-      console.log("[snail] Plugin installation completed.");
+        }
+      });
+      zipfile.on("end", () => {
+        console.log("[snail] Plugin installation completed.");
+        resolve({ success: true, message: "Plugin installed successfully" });
+      });
     });
   });
 });

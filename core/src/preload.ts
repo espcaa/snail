@@ -232,9 +232,8 @@ const registerPlugin = (pluginId: string) => {
   }
 };
 
-const installPlugin = (): boolean => {
-  ipcRenderer.send("SNAIL_INSTALL_NEW_PLUGIN");
-  return;
+const installPlugin = (): Promise<{ success: boolean; message: string }> => {
+  return ipcRenderer.invoke("SNAIL_INSTALL_NEW_PLUGIN");
 };
 
 const SnailGlobal: SnailAPI = {
