@@ -232,6 +232,11 @@ const registerPlugin = (pluginId: string) => {
   }
 };
 
+const installPlugin = (): boolean => {
+  ipcRenderer.send("SNAIL_INSTALL_NEW_PLUGIN");
+  return;
+};
+
 const SnailGlobal: SnailAPI = {
   getPluginList,
   getThemeList,
@@ -240,6 +245,11 @@ const SnailGlobal: SnailAPI = {
   enablePlugin,
   disablePlugin,
   registerPlugin,
+  installPlugin,
+  updateLoader: (): boolean => {
+    ipcRenderer.send("SNAIL_UPDATE_LOADER");
+    return true;
+  },
 };
 
 contextBridge.exposeInMainWorld("Snail", {

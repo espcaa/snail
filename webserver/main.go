@@ -67,8 +67,9 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(config)
 			return
+		} else {
+			http.ServeFile(w, r, "./assets/"+file)
 		}
-		http.ServeFile(w, r, "./assets/"+file)
 	})
 
 	r.Get("/info.json", func(w http.ResponseWriter, r *http.Request) {

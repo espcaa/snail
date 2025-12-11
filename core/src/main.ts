@@ -9,6 +9,7 @@ import {
   PluginManifest,
   ThemeManifest,
 } from "snail-plugin-api";
+import { dialog } from "electron/main";
 
 const BASE_DIR = path.join(os.homedir(), ".snail");
 const PLUGINS_DIR = path.join(BASE_DIR, "plugins");
@@ -21,6 +22,7 @@ interface Config {
   serverUrl: string;
   pluginsEnabled: string[];
   themesEnabled: string[];
+  loaderVersion?: string;
 }
 
 let mainWindow: Electron.BrowserWindow | null = null;
@@ -261,19 +263,150 @@ ipcMain.on("SNAIL_GET_PLUGIN_FILE", (e, pluginId: string) => {
   e.returnValue = files;
 });
 
+// ---------- Updating Snail loader \o/ ----------
+
+function updateLoader() {
+  const internalDir = path.join(BASE_DIR, "internal");
+
+  const serverUrl =
+    readConfig().serverUrl || "https://assets.snail.hackclub.cc";
+  const preloadUrl = `${serverUrl}/assets/preload.js`;
+  const mainUrl = `${serverUrl}/assets/main.js`;
+
+  fs.mkdirSync(internalDir, { recursive: true });
+
+  // Download preload.js
+  fetch(preloadUrl)
+    .then((res) => {
+      if (!res.ok)
+        throw new Error(`Failed to download preload.js: ${res.status}`);
+      return res.text();
+    })
+    .then((data) => {
+      fs.writeFileSync(PRELOAD, data, "utf8");
+      console.log("[snail] Updated preload.js");
+    })
+    .catch((err) => {
+      console.error("[snail] Error updating preload.js:", err);
+    });
+
+  // Download main.js
+  const mainPath = path.join(internalDir, "main.js");
+  fetch(mainUrl)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Failed to download main.js: ${res.status}`);
+      return res.text();
+    })
+    .then((data) => {
+      fs.writeFileSync(mainPath, data, "utf8");
+      console.log("[snail] Updated main.js");
+    })
+    .catch((err) => {
+      console.error("[snail] Error updating main.js:", err);
+    });
+}
+
+ipcMain.on("SNAIL_UPDATE_LOADER", () => {
+  updateLoader();
+});
+
+function checkForUpdate(): boolean {
+  const serverUrl =
+    readConfig().serverUrl || "https://assets.snail.hackclub.cc";
+  const currentVersion = readConfig().loaderVersion || "0.0.0";
+  const versionUrl = `${serverUrl}/info.json`;
+
+  fetch(versionUrl)
+    .then((res) => {
+      if (!res.ok)
+        throw new Error(`Failed to fetch version info: ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      const latestVersion = data.version;
+      if (latestVersion !== currentVersion) {
+        console.log(
+          `[snail] New loader version available: ${latestVersion} (current: ${currentVersion})`,
+        );
+        return true;
+      } else {
+        console.log("[snail] Loader is up to date.");
+        return false;
+      }
+    })
+    .catch((err) => {
+      console.error("[snail] Error checking for loader update:", err);
+      return false;
+    });
+  return false;
+}
+
+ipcMain.on("SNAIL_CHECK_LOADER_UPDATE", (e) => {
+  const hasUpdate = checkForUpdate();
+  e.returnValue = hasUpdate;
+});
+
+// ---------- Plugin install helpers ----------
+ipcMain.on("SNAIL_INSTALL_NEW_PLUGIN", async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: ".zip Files", extensions: ["zip"] }],
+  });
+  if (canceled || filePaths.length === 0) {
+    console.log("[snail] Plugin installation canceled.");
+    return;
+  }
+  const zipPath = filePaths[0];
+  console.log(`[snail] Selected plugin zip: ${zipPath}`);
+
+  // unzip and put in ~/.snail/plugins (if the folder already exists, overwrite)
+  const yauzl = require("yauzl");
+  yauzl.open(zipPath, { lazyEntries: true }, (err: any, zipfile: any) => {
+    if (err) {
+      console.error("[snail] Failed to open zip file:", err);
+      return;
+    }
+    zipfile.readEntry();
+    zipfile.on("entry", (entry: any) => {
+      const filePath = path.join(PLUGINS_DIR, entry.fileName);
+      if (entry.fileName.endsWith("/")) {
+        // Directory
+        // Check if it's in ~/.snail/plugins
+        if (!filePath.startsWith(PLUGINS_DIR)) {
+          console.error(`[snail] Invalid plugin structure: ${entry.fileName}`);
+          zipfile.close();
+          return;
+        }
+        fs.mkdirSync(filePath, { recursive: true });
+        zipfile.readEntry();
+      } else {
+        // File
+        zipfile.openReadStream(entry, (err: any, readStream: any) => {
+          if (err) {
+            console.error("[snail] Failed to read zip entry:", err);
+            return;
+          }
+          fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          const writeStream = fs.createWriteStream(filePath);
+          readStream.pipe(writeStream);
+          readStream.on("end", () => {
+            zipfile.readEntry();
+          });
+        });
+      }
+    });
+    zipfile.on("end", () => {
+      console.log("[snail] Plugin installation completed.");
+    });
+  });
+});
+
+// ---------- App Event Handlers ----------
+
 app.once("browser-window-created", (ev, win) => {
   const pre = win.webContents.session.getPreloads() || [];
   if (!pre.includes(PRELOAD)) {
     win.webContents.session.setPreloads([...pre, PRELOAD]);
     mainWindow = win;
   }
-});
-
-const installExtension = require("electron-devtools-installer").default;
-const { REACT_DEVELOPER_TOOLS } = require("electron-devtools-installer");
-
-app.whenReady().then(async () => {
-  installExtension(REACT_DEVELOPER_TOOLS)
-    .then((name) => console.log(`Added extension: ${name}`))
-    .catch((err) => console.log("An error occurred: ", err));
 });
