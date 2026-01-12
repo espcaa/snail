@@ -60,13 +60,14 @@ func InstallSomething(opts InstallOptions) error {
 
 	// unpack the asar file
 
-	jsRuntimeInstalled, jsRuntimeName := getJsRuntimeInstalled()
-	if !jsRuntimeInstalled {
-		return errors.New("no JavaScript runtime (npm or bun) found in PATH")
+	jsRuntime, err := DetectJsRuntime()
+	if err != nil {
+		return err
 	}
-	println("Using JavaScript runtime at:", jsRuntimeName)
+	println("Using JavaScript runtime:", jsRuntime.Name)
 
-	err = unpackAsar(appAsarPath, filepath.Join(tempDir, "app-unpacked"), jsRuntimeName)
+	err = unpackAsar(appAsarPath, filepath.Join(tempDir, "app-unpacked"), jsRuntime)
+
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,8 @@ func InstallSomething(opts InstallOptions) error {
 	// repack the asar file
 
 	newAsarPath := filepath.Join(tempDir, "app-new.asar")
-	err = packAsar(filepath.Join(tempDir, "app-unpacked"), newAsarPath, jsRuntimeName)
+	err = packAsar(filepath.Join(tempDir, "app-unpacked"), newAsarPath, jsRuntime)
+
 	if err != nil {
 		return fmt.Errorf("failed to repack asar: %w", err)
 	}
@@ -169,7 +171,8 @@ func InstallSomething(opts InstallOptions) error {
 	}
 
 	// remove electron fuses
-	err = removeElectronFuses(opts.TargetPath, jsRuntimeName)
+	err = removeElectronFuses(opts.TargetPath, jsRuntime)
+
 	if err != nil {
 		return fmt.Errorf("failed to remove electron fuses: %w", err)
 	}
@@ -300,46 +303,35 @@ func getJsRuntimeInstalled() (bool, string) {
 	return false, ""
 }
 
-func unpackAsar(asarPath, destDir string, jsRuntime string) error {
-	var jsRuntimeX string
-	if jsRuntime == "bun" {
-		jsRuntimeX = "bunx"
-	} else {
-		jsRuntimeX = "npx"
-	}
-
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		asarPath = fmt.Sprintf(`"%s"`, asarPath)
-		destDir = fmt.Sprintf(`"%s"`, destDir)
-	}
-	cmd = exec.Command(jsRuntimeX, "asar", "extract", asarPath, destDir)
+func unpackAsar(asarPath, destDir string, rt *JsRuntime) error {
+	cmd := exec.Command(
+		rt.Exec,
+		"asar",
+		"extract",
+		asarPath,
+		destDir,
+	)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to unpack asar: %s, %w", string(output), err)
+		return fmt.Errorf("asar extract failed: %s, %w", output, err)
 	}
-
 	return nil
 }
 
-func packAsar(srcDir, asarPath string, jsRuntime string) error {
-	var jsRuntimeX string
-	if jsRuntime == "bun" {
-		jsRuntimeX = "bunx"
-	} else {
-		jsRuntimeX = "npx"
-	}
-	if runtime.GOOS == "windows" {
-		asarPath = fmt.Sprintf(`"%s"`, asarPath)
-		srcDir = fmt.Sprintf(`"%s"`, srcDir)
-	}
-	cmd := exec.Command(jsRuntimeX, "asar", "pack", srcDir, asarPath)
+func packAsar(srcDir, asarPath string, rt *JsRuntime) error {
+	cmd := exec.Command(
+		rt.Exec,
+		"asar",
+		"pack",
+		srcDir,
+		asarPath,
+	)
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to pack asar: %s, %w", string(output), err)
+		return fmt.Errorf("asar pack failed: %s, %w", output, err)
 	}
-
 	return nil
 }
 
@@ -406,20 +398,19 @@ func codeSignMacOS(appPath string) error {
 	return nil
 }
 
-func removeElectronFuses(asarPath string, jsRuntime string) error {
+func removeElectronFuses(appPath string, rt *JsRuntime) error {
+	cmd := exec.Command(
+		rt.Exec,
+		"@electron/fuses",
+		"write",
+		"--app",
+		appPath,
+		"EnableEmbeddedAsarIntegrityValidation=off",
+	)
 
-	var jsRuntimeX string
-	if jsRuntime == "bun" {
-		jsRuntimeX = "bunx"
-	} else {
-		jsRuntimeX = "npx"
-	}
-
-	cmd := exec.Command(jsRuntimeX, "@electron/fuses", "write", "--app", asarPath, "EnableEmbeddedAsarIntegrityValidation=off")
-	println("Removing electron fuses with command:", cmd.String())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to remove electron fuses: %s, %w", string(output), err)
+		return fmt.Errorf("electron fuses failed: %s, %w", output, err)
 	}
 	return nil
 }
@@ -464,4 +455,61 @@ func PatchSnailUTIMacos(appPath string) error {
 	}
 
 	return nil
+}
+
+type JsRuntime struct {
+	Name string // "bun" or "npm"
+	Exec string // "bunx" or "npx"
+}
+
+func DetectJsRuntime() (*JsRuntime, error) {
+	ensureCommonPaths()
+
+	// Prefer bun
+	if p, err := exec.LookPath(cmdName("bunx")); err == nil {
+		return &JsRuntime{
+			Name: "bun",
+			Exec: p,
+		}, nil
+	}
+
+	// Fallback to npm
+	if p, err := exec.LookPath(cmdName("npx")); err == nil {
+		return &JsRuntime{
+			Name: "npm",
+			Exec: p,
+		}, nil
+	}
+
+	return nil, errors.New("no JavaScript runtime found (bunx or npx)")
+}
+
+func ensureCommonPaths() {
+	path := os.Getenv("PATH")
+
+	add := func(p string) {
+		if p == "" {
+			return
+		}
+		if !strings.Contains(path, p) {
+			path += string(os.PathListSeparator) + p
+		}
+	}
+
+	add("/usr/local/bin")
+	add("/opt/homebrew/bin")
+	add(filepath.Join(os.Getenv("HOME"), ".bun", "bin"))
+
+	if runtime.GOOS == "windows" {
+		add(filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local", "bun", "bin"))
+	}
+
+	os.Setenv("PATH", path)
+}
+
+func cmdName(name string) string {
+	if runtime.GOOS == "windows" {
+		return name + ".cmd"
+	}
+	return name
 }
