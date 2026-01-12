@@ -1,18 +1,7 @@
 # snail
 
-mod loader for slack desktop app, inspired from my last attempt, [slack-plugin-thingy](https://github/espcaa/slack-plugin-thingy)
+only works on macos for now ;-;
 
 ## setup
 
-- install [go](https://go.dev/doc/install)
-- clone this repo 
-- run `cd app && go install` to install dependencies
-- run `go run .`to run the app
-
-you can also download prebuilt binaries from the [releases tab](https://github.com/espcaa/snail/releases) for macos and linux
-
-## usage
-
-- run your slack client :D
-- you should see a plugin icon near your user info
-- click it to open the plugin manager!
+grab the app from the releases!
