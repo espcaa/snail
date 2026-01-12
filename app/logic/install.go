@@ -161,15 +161,6 @@ func InstallSomething(opts InstallOptions) error {
 		println("Removed temporary directory:", tempDir)
 	}
 
-	// macos: patch UTI
-	if runtime.GOOS == "darwin" {
-		err = PatchSnailUTIMacos(opts.TargetPath)
-		if err != nil {
-			return fmt.Errorf("failed to patch macOS UTI: %w", err)
-		}
-		println("Patched macOS UTI for Snail files.")
-	}
-
 	// remove electron fuses
 	err = removeElectronFuses(opts.TargetPath, jsRuntime)
 
@@ -361,25 +352,15 @@ func downloadFile(url, destPath string) error {
 }
 
 func codeSignMacOS(appPath string) error {
-	appleScript := fmt.Sprintf(`
-	do shell script "/usr/bin/codesign --force --sign - --deep --preserve-metadata=identifier,entitlements %s" with administrator privileges`, appPath)
+	script := fmt.Sprintf("/usr/bin/codesign --force --sign - --deep --preserve-metadata=identifier,entitlements %s", appPath)
 
-	for {
-		cmd := exec.Command("osascript", "-e", appleScript)
-		output, err := cmd.CombinedOutput()
-
-		if err != nil {
-			if strings.Contains(string(output), "User canceled") || strings.Contains(string(output), "authentication failure") {
-				fmt.Println("You must provide the correct password to continue. Please try again.")
-			} else {
-				// try again...
-			}
-		} else {
-			break
-		}
-
-		time.Sleep(1 * time.Second)
+	cmd := exec.Command("bash", "-c", script)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("code signing failed: %s, %w", output, err)
 	}
+
+	// Reset permissions for Slack to re-prompt for Screen, Microphone, Camera access
 
 	// tccutil reset ScreenCapture com.tinyspeck.slackmacgap
 	// tccutil reset Microphone com.tinyspeck.slackmacgap
@@ -412,48 +393,6 @@ func removeElectronFuses(appPath string, rt *JsRuntime) error {
 	if err != nil {
 		return fmt.Errorf("electron fuses failed: %s, %w", output, err)
 	}
-	return nil
-}
-
-func PatchSnailUTIMacos(appPath string) error {
-	plistPath := filepath.Join(appPath, "Contents", "Info.plist")
-
-	commands := [][]string{
-		// CFBundleDocumentTypes
-		{"Add", ":CFBundleDocumentTypes:0", "dict"},
-		{"Add", ":CFBundleDocumentTypes:0:CFBundleTypeName", "string", "Snail File"},
-		{"Add", ":CFBundleDocumentTypes:0:CFBundleTypeRole", "string", "Editor"},
-		{"Add", ":CFBundleDocumentTypes:0:LSItemContentTypes", "array"},
-		{"Add", ":CFBundleDocumentTypes:0:LSItemContentTypes:0", "string", "com.silly.snail"},
-
-		// UTExportedTypeDeclarations
-		{"Add", ":UTExportedTypeDeclarations:0", "dict"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeIdentifier", "string", "com.silly.snail"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeDescription", "string", "Snail File"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeConformsTo", "array"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeConformsTo:0", "string", "public.data"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeTagSpecification", "dict"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.filename-extension", "string", "snail"},
-		{"Add", ":UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.mime-type", "string", "application/x-snail"},
-	}
-
-	for _, args := range commands {
-		cmd := exec.Command("/usr/libexec/PlistBuddy", append([]string{"-c"}, args...)...)
-		cmd.Args = append(cmd.Args, plistPath)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("PlistBuddy error: %v, output: %s", err, string(output))
-		}
-	}
-
-	if err := exec.Command("touch", appPath).Run(); err != nil {
-		return fmt.Errorf("failed to touch app bundle: %v", err)
-	}
-	lsregister := "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-	if err := exec.Command(lsregister, "-f", appPath).Run(); err != nil {
-		return fmt.Errorf("failed to refresh Launch Services: %v", err)
-	}
-
 	return nil
 }
 
